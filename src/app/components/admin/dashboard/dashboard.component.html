@@ -1,0 +1,220 @@
+<div class="dashboard">
+  <div class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Manage your business website demos</p>
+    </div>
+    <a routerLink="/admin/business/new" class="btn-primary">
+      <i class="bi bi-plus-lg"></i>
+      New Business
+    </a>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-value">{{ totalBusinesses() }}</span>
+        <span class="stat-label">Total Businesses</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-value">{{ publishedCount() }}</span>
+        <span class="stat-label">Published</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-value">{{ draftCount() }}</span>
+        <span class="stat-label">Drafts</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & List -->
+  <div class="list-section">
+    <div class="list-header">
+      <h2>Businesses</h2>
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input
+          type="text"
+          placeholder="Search businesses..."
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+        />
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading businesses...</p>
+      </div>
+    } @else if (filteredBusinesses.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-building"></i>
+        <h3>No businesses found</h3>
+        <p>
+          @if (searchQuery()) {
+            No businesses match your search. Try a different query.
+          } @else {
+            Create your first business to get started.
+          }
+        </p>
+        @if (!searchQuery()) {
+          <a routerLink="/admin/business/new" class="btn-primary">
+            <i class="bi bi-plus-lg"></i>
+            Create Business
+          </a>
+        }
+      </div>
+    } @else {
+      <div class="business-cards">
+        @for (business of filteredBusinesses; track business.id) {
+          <div class="business-card">
+            <div class="card-header">
+              <div class="card-title-row">
+                <h3>{{ business.businessName }}</h3>
+                <span
+                  class="status-badge"
+                  [class.published]="business.status === 'published'"
+                  [class.draft]="business.status === 'draft'"
+                >
+                  {{ business.status }}
+                </span>
+              </div>
+              <span class="card-category">{{ business.category }}</span>
+            </div>
+
+            <div class="card-body">
+              <div class="card-meta">
+                <span>
+                  <i class="bi bi-collection"></i>
+                  {{ getTemplateLabel(business.templateId) }}
+                </span>
+                <span>
+                  <i class="bi bi-calendar"></i>
+                  {{ formatDate(business.createdAt) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button
+                class="btn-action btn-preview"
+                (click)="openDemo(business)"
+              >
+                <i class="bi bi-box-arrow-up-right"></i>
+                <span class="btn-label">Preview</span>
+              </button>
+
+              <a
+                class="btn-action btn-edit"
+                [routerLink]="['/admin/business', business.id, 'edit']"
+              >
+                <i class="bi bi-pencil"></i>
+                <span class="btn-label">Edit</span>
+              </a>
+
+              @if (business.status === 'published') {
+                <button
+                  class="btn-action btn-copy"
+                  (click)="copyDemoUrl(business)"
+                >
+                  <i class="bi bi-link-45deg"></i>
+                  <span class="btn-label">Copy Link</span>
+                </button>
+              }
+
+              <button
+                class="btn-action btn-duplicate"
+                [disabled]="duplicatingId() === business.id"
+                (click)="duplicateBusiness(business)"
+              >
+                @if (duplicatingId() === business.id) {
+                  <span class="mini-spinner"></span>
+                } @else {
+                  <i class="bi bi-files"></i>
+                }
+                <span class="btn-label">Duplicate</span>
+              </button>
+
+              <button
+                class="btn-action btn-toggle"
+                (click)="toggleStatus(business)"
+              >
+                <i
+                  class="bi"
+                  [ngClass]="
+                    business.status === 'published'
+                      ? 'bi-eye-slash'
+                      : 'bi-eye'
+                  "
+                ></i>
+                <span class="btn-label">{{ business.status === 'published' ? 'Unpublish' : 'Publish' }}</span>
+              </button>
+
+              @if (business.status === 'published') {
+                <button
+                  class="btn-action btn-screenshot"
+                  (click)="openScreenshotDialog(business)"
+                >
+                  <i class="bi bi-camera"></i>
+                  <span class="btn-label">Screenshot</span>
+                </button>
+              } @else {
+                <span class="btn-action btn-screenshot-disabled" title="Publish before generating a screenshot.">
+                  <i class="bi bi-camera"></i>
+                  <span class="btn-label">Screenshot</span>
+                </span>
+              }
+
+              @if (deleteConfirmId() === business.id) {
+                <div class="delete-confirm">
+                  <span>Delete?</span>
+                  <button class="btn-confirm-yes" (click)="deleteBusiness(business)">
+                    Delete
+                  </button>
+                  <button class="btn-confirm-no" (click)="cancelDelete()">
+                    Cancel
+                  </button>
+                </div>
+              } @else {
+                <button
+                  class="btn-action btn-delete"
+                  (click)="confirmDelete(business)"
+                >
+                  <i class="bi bi-trash"></i>
+                  <span class="btn-label">Delete</span>
+                </button>
+              }
+            </div>
+
+            @if (business.status === 'published') {
+              <div class="demo-url-bar">
+                <i class="bi bi-link-45deg"></i>
+                <span>{{ getDemoUrl(business) }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Toast -->
+@if (toastMessage()) {
+  <div class="toast">{{ toastMessage() }}</div>
+}
+
+<!-- Screenshot Dialog -->
+@if (screenshotBusiness()) {
+  <app-screenshot-dialog
+    [business]="screenshotBusiness()!"
+    [isOpen]="screenshotDialogOpen()"
+    (closed)="closeScreenshotDialog()"
+  />
+}

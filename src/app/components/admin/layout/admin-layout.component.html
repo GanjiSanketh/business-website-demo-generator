@@ -1,0 +1,73 @@
+<div class="admin-layout">
+  <!-- Top navigation -->
+  <header class="top-nav">
+    <div class="nav-container">
+      <div class="nav-left">
+        <a routerLink="/admin" class="nav-brand">
+          <span class="brand-mark">D</span>
+          <span class="brand-text">Demo Generator</span>
+        </a>
+        <nav class="nav-links">
+          <a
+            routerLink="/admin"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            Dashboard
+          </a>
+          <a
+            routerLink="/admin/business/new"
+            routerLinkActive="active"
+          >
+            New Demo
+          </a>
+        </nav>
+      </div>
+      <div class="nav-right">
+        <button class="nav-logout" (click)="logout()">
+          Sign out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile header -->
+  <div class="mobile-header">
+    <button class="menu-btn" (click)="toggleSidebar()">
+      <i class="bi" [ngClass]="sidebarOpen() ? 'bi-x-lg' : 'bi-list'"></i>
+    </button>
+    <span class="mobile-title">Demo Generator</span>
+  </div>
+
+  <!-- Mobile overlay -->
+  @if (sidebarOpen()) {
+    <div class="mobile-overlay" (click)="closeSidebar()"></div>
+  }
+
+  <!-- Mobile nav -->
+  <nav class="mobile-nav" [class.open]="sidebarOpen()">
+    <a
+      routerLink="/admin"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      (click)="closeSidebar()"
+    >
+      Dashboard
+    </a>
+    <a
+      routerLink="/admin/business/new"
+      routerLinkActive="active"
+      (click)="closeSidebar()"
+    >
+      New Demo
+    </a>
+    <button class="mobile-logout" (click)="logout()">
+      Sign out
+    </button>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

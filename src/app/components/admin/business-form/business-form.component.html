@@ -1,0 +1,338 @@
+<div class="form-page">
+  <div class="page-header">
+    <a routerLink="/admin" class="back-link">
+      <i class="bi bi-arrow-left"></i>
+      Back to Dashboard
+    </a>
+    <h1>{{ isEditMode() ? 'Edit Business' : 'Create Business' }}</h1>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading business data...</p>
+    </div>
+  } @else {
+    @if (successMessage()) {
+      <div class="alert alert-success">
+        <i class="bi bi-check-circle-fill"></i>
+        {{ successMessage() }}
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        {{ errorMessage() }}
+      </div>
+    }
+
+    @if (demoUrl()) {
+      <div class="demo-url-bar">
+        <i class="bi bi-link-45deg"></i>
+        <span>{{ demoUrl() }}</span>
+        <button class="btn-sm btn-copy" (click)="copyDemoUrl()">
+          <i class="bi bi-clipboard"></i>
+        </button>
+        <button class="btn-sm btn-open" (click)="openDemo()">
+          <i class="bi bi-box-arrow-up-right"></i>
+          Open Demo
+        </button>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="business-form">
+      <div class="form-grid">
+        <!-- Left column -->
+        <div class="form-col">
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-info-circle"></i>
+              Basic Information
+            </h2>
+
+            <div class="form-group">
+              <label for="businessName">Business Name *</label>
+              <input
+                id="businessName"
+                type="text"
+                formControlName="businessName"
+                [class.invalid]="isFieldInvalid('businessName')"
+                placeholder="e.g. ABC Salon"
+              />
+              @if (isFieldInvalid('businessName')) {
+                <span class="error-text">Business name is required.</span>
+              }
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="category">Category *</label>
+                <select
+                  id="category"
+                  formControlName="category"
+                  [class.invalid]="isFieldInvalid('category')"
+                >
+                  <option value="">Select category</option>
+                  @for (cat of categories; track cat) {
+                    <option [value]="cat">{{ cat }}</option>
+                  }
+                </select>
+                @if (isFieldInvalid('category')) {
+                  <span class="error-text">Category is required.</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label for="templateId">Template *</label>
+                <select
+                  id="templateId"
+                  formControlName="templateId"
+                  [class.invalid]="isFieldInvalid('templateId')"
+                >
+                  @for (tpl of templates; track tpl.id) {
+                    <option [value]="tpl.id">
+                      {{ tpl.label }} {{ !tpl.available ? '(Coming Soon)' : '' }}
+                    </option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="tagline">Tagline</label>
+              <input
+                id="tagline"
+                type="text"
+                formControlName="tagline"
+                placeholder="e.g. Look Good. Feel Great."
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea
+                id="description"
+                formControlName="description"
+                rows="4"
+                placeholder="Tell visitors about your business..."
+              ></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="phone">Phone *</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  formControlName="phone"
+                  [class.invalid]="isFieldInvalid('phone')"
+                  placeholder="+1 234 567 8900"
+                />
+                @if (isFieldInvalid('phone')) {
+                  <span class="error-text">Phone is required.</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label for="whatsapp">WhatsApp *</label>
+                <input
+                  id="whatsapp"
+                  type="tel"
+                  formControlName="whatsapp"
+                  [class.invalid]="isFieldInvalid('whatsapp')"
+                  placeholder="+1 234 567 8900"
+                />
+                @if (isFieldInvalid('whatsapp')) {
+                  <span class="error-text">WhatsApp is required.</span>
+                }
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="address">Address *</label>
+              <textarea
+                id="address"
+                formControlName="address"
+                rows="2"
+                [class.invalid]="isFieldInvalid('address')"
+                placeholder="Full business address"
+              ></textarea>
+              @if (isFieldInvalid('address')) {
+                <span class="error-text">Address is required.</span>
+              }
+            </div>
+          </div>
+
+          <!-- Services -->
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-list-check"></i>
+              Services
+            </h2>
+
+            <div class="services-list">
+              @for (service of services.controls; track $index; let i = $index) {
+                <div class="service-item">
+                  <input
+                    type="text"
+                    [formControlName]="i"
+                    placeholder="e.g. Haircut, Styling..."
+                  />
+                  <button
+                    type="button"
+                    class="btn-remove"
+                    (click)="removeService(i)"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <button
+              type="button"
+              class="btn-add-service"
+              (click)="addService()"
+            >
+              <i class="bi bi-plus-lg"></i>
+              Add Service
+            </button>
+          </div>
+
+          <!-- Status -->
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-toggle2-on"></i>
+              Status
+            </h2>
+            <div class="status-options">
+              <label class="status-option">
+                <input
+                  type="radio"
+                  formControlName="status"
+                  value="draft"
+                />
+                <span class="status-radio"></span>
+                <div>
+                  <strong>Draft</strong>
+                  <p>Not publicly visible</p>
+                </div>
+              </label>
+              <label class="status-option">
+                <input
+                  type="radio"
+                  formControlName="status"
+                  value="published"
+                />
+                <span class="status-radio"></span>
+                <div>
+                  <strong>Published</strong>
+                  <p>Visible via demo URL</p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="form-col">
+          <!-- Logo upload -->
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-image"></i>
+              Logo
+            </h2>
+
+            <div class="upload-area" [class.drag-over]="dragOverLogo()" (click)="logoInput.click()">
+              @if (logoPreview()) {
+                <img [src]="logoPreview()" alt="Logo preview" class="logo-preview" />
+              } @else {
+                <div class="upload-placeholder">
+                  <i class="bi bi-cloud-arrow-up"></i>
+                  <p>Click to upload logo</p>
+                  <span>PNG, JPG up to 5MB</span>
+                </div>
+              }
+            </div>
+            <input
+              #logoInput
+              type="file"
+              accept="image/*"
+              (change)="onLogoChange($event)"
+              hidden
+            />
+          </div>
+
+          <!-- Images upload -->
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-images"></i>
+              Business Images
+            </h2>
+
+            <div class="upload-area-images" [class.drag-over]="dragOverImages()" (click)="imagesInput.click()">
+              <div class="images-grid">
+              @for (preview of imagePreviews(); track $index; let i = $index) {
+                <div class="image-item" [class.cover]="i === 0">
+                  <img [src]="preview" alt="Image {{ i + 1 }}" />
+                  @if (i === 0) {
+                    <span class="cover-badge">Cover</span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn-cover"
+                      (click)="setAsCover(i)"
+                      title="Set as cover image"
+                    >
+                      <i class="bi bi-star"></i>
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="btn-remove-image"
+                    (click)="removeImage(i)"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              }
+
+              <div class="image-upload-btn" (click)="imagesInput.click()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Add</span>
+              </div>
+              </div>
+            </div>
+            <input
+              #imagesInput
+              type="file"
+              accept="image/*"
+              multiple
+              (change)="onImagesChange($event)"
+              hidden
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-actions">
+        <a routerLink="/admin" class="btn-cancel">Cancel</a>
+        <button
+          type="submit"
+          class="btn-save"
+          [disabled]="saving()"
+        >
+          @if (saving()) {
+            <span class="spinner"></span>
+            Saving...
+          } @else {
+            <i class="bi bi-check-lg"></i>
+            {{ isEditMode() ? 'Update Business' : 'Create Business' }}
+          }
+        </button>
+      </div>
+    </form>
+  }
+</div>

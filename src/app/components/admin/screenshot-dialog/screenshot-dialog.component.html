@@ -1,0 +1,99 @@
+@if (isOpen) {
+  <div class="dialog-overlay" (click)="close()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      @switch (step()) {
+        @case ('choose') {
+          <div class="dialog-header">
+            <h3>Generate Marketing Screenshot</h3>
+            <button class="dialog-close" (click)="close()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-subtitle">Choose a format for your marketing screenshot.</p>
+            <div class="format-options">
+              <button class="format-btn" (click)="generateScreenshot('desktop')">
+                <div class="format-icon">
+                  <i class="bi bi-display"></i>
+                </div>
+                <div class="format-info">
+                  <span class="format-label">Desktop Website</span>
+                  <span class="format-size">1440 × 900</span>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+              </button>
+              <button class="format-btn" (click)="generateScreenshot('mobile')">
+                <div class="format-icon">
+                  <i class="bi bi-phone"></i>
+                </div>
+                <div class="format-info">
+                  <span class="format-label">Mobile Website</span>
+                  <span class="format-size">390 × 844</span>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn-cancel" (click)="close()">Cancel</button>
+          </div>
+        }
+
+        @case ('generating') {
+          <div class="dialog-header">
+            <h3>Generating Screenshot</h3>
+            <button class="dialog-close" (click)="close()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="dialog-body generating-state">
+            <div class="generating-spinner"></div>
+            <p>{{ statusMessage() }}</p>
+          </div>
+        }
+
+        @case ('preview') {
+          <div class="dialog-header">
+            <h3>Marketing Screenshot</h3>
+            <button class="dialog-close" (click)="close()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="dialog-body preview-state">
+            <div class="preview-container">
+              <img [src]="previewUrl()" alt="Screenshot preview" />
+            </div>
+          </div>
+          <div class="dialog-footer preview-actions">
+            <button class="btn-download" (click)="download()">
+              <i class="bi bi-download"></i>
+              Download Screenshot
+            </button>
+            <button class="btn-generate-again" (click)="generateAgain()">
+              <i class="bi bi-arrow-repeat"></i>
+              Generate Again
+            </button>
+          </div>
+        }
+
+        @case ('error') {
+          <div class="dialog-header">
+            <h3>Screenshot Error</h3>
+            <button class="dialog-close" (click)="close()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="dialog-body error-state">
+            <div class="error-icon">
+              <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <p>{{ errorMessage() }}</p>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn-cancel" (click)="close()">Close</button>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}
