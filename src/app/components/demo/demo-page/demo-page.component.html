@@ -1,0 +1,37 @@
+@if (loading()) {
+  <div class="demo-loading">
+    <div class="loading-spinner"></div>
+    <p>Loading demo...</p>
+  </div>
+} @else if (notFound()) {
+  <div class="demo-not-found">
+    <div class="not-found-content">
+      <i class="bi bi-exclamation-triangle"></i>
+      <h1>Business Demo Not Found</h1>
+      <p>The demo you're looking for doesn't exist or is not published yet.</p>
+      <a href="/" class="btn-home">
+        <i class="bi bi-house"></i>
+        Go Home
+      </a>
+    </div>
+  </div>
+} @else if (business()) {
+  @switch (business()!.templateId) {
+    @case ('salon-01') {
+      <app-salon01 [business]="business()!" />
+    }
+    @default {
+      <div class="demo-not-found">
+        <div class="not-found-content">
+          <i class="bi bi-tools"></i>
+          <h1>Template Coming Soon</h1>
+          <p>This template is currently under development.</p>
+          <a href="/" class="btn-home">
+            <i class="bi bi-house"></i>
+            Go Home
+          </a>
+        </div>
+      </div>
+    }
+  }
+}
