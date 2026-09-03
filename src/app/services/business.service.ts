@@ -156,6 +156,12 @@ export class BusinessService {
     if (business.images && business.images.length > 0) {
       dataToSave['images'] = business.images;
     }
+    if (business.themeId) {
+      dataToSave['themeId'] = business.themeId;
+    }
+    if (business.themeOptions && Object.keys(business.themeOptions).length > 0) {
+      dataToSave['themeOptions'] = business.themeOptions;
+    }
 
     try {
       const docRef = await this.withTimeout(
@@ -220,6 +226,10 @@ export class BusinessService {
       services: business.services ? [...business.services] : [],
       slug,
       status: 'draft',
+      themeId: business.themeId,
+      themeOptions: business.themeOptions
+        ? { ...business.themeOptions }
+        : undefined,
     };
 
     return this.createBusiness(duplicateData as Business);

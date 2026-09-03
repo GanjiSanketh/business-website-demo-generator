@@ -1,0 +1,417 @@
+<!-- HEADER -->
+<header class="restaurant02-header" [class.scrolled]="isScrolled">
+  <div class="header-container">
+    <a class="header-logo" (click)="scrollTo('home')" aria-label="Go to top">
+      @if (business.logoUrl) {
+        <img [src]="business.logoUrl" [alt]="business.businessName" class="header-logo-img" />
+      } @else {
+        <span class="header-logo-text">
+          <i class="bi bi-cup-hot header-logo-mark" aria-hidden="true"></i>
+          {{ business.businessName }}
+        </span>
+      }
+    </a>
+
+    <nav class="header-nav" [class.open]="mobileMenuOpen" role="navigation" aria-label="Main navigation">
+      <a class="nav-link" (click)="scrollTo('home')">Home</a>
+      <a class="nav-link" (click)="scrollTo('about')">About</a>
+      <a class="nav-link" (click)="scrollTo('menu')">Menu</a>
+      <a class="nav-link" (click)="scrollTo('gallery')">Gallery</a>
+      <a class="nav-link" (click)="scrollTo('contact')">Visit</a>
+    </nav>
+
+    <div class="header-actions">
+      @if (primaryCtaUrl) {
+        <a class="header-cta" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null" [attr.aria-label]="primaryCtaLabel + (hasWhatsApp ? ' on WhatsApp' : '')">
+          @if (hasWhatsApp) {
+            <i class="bi bi-whatsapp" aria-hidden="true"></i>
+          } @else {
+            <i class="bi bi-telephone" aria-hidden="true"></i>
+          }
+          <span>{{ primaryCtaLabel }}</span>
+        </a>
+      }
+      <button class="mobile-menu-btn" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen" aria-label="Toggle menu" type="button">
+        @if (!mobileMenuOpen) {
+          <i class="bi bi-list" aria-hidden="true"></i>
+        } @else {
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        }
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- MOBILE BOTTOM CTA -->
+<div class="mobile-cta-bar" [class.visible]="showMobileCta">
+  @if (hasPhone) {
+    <a class="mobile-cta-btn" [href]="phoneUrl" aria-label="Call us">
+      <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+      <span>Call</span>
+    </a>
+  }
+  @if (hasWhatsApp) {
+    <a class="mobile-cta-btn primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer" aria-label="Book on WhatsApp">
+      <i class="bi bi-whatsapp" aria-hidden="true"></i>
+      <span>Book</span>
+    </a>
+  }
+</div>
+
+<main>
+  <!-- HERO -->
+  <section id="home" class="cafe-hero" aria-labelledby="hero-title">
+    <div class="hero-container">
+      <div class="hero-copy">
+        <span class="hero-chip"><i class="bi bi-cup-hot" aria-hidden="true"></i>{{ categoryLabel }}</span>
+        <h1 id="hero-title">{{ business.businessName }}</h1>
+        @if (business.tagline) {
+          <p class="hero-tagline">{{ business.tagline }}</p>
+        }
+        @if (heroDescription) {
+          <p class="hero-description">{{ heroDescription }}</p>
+        }
+        <div class="hero-actions">
+          @if (primaryCtaUrl) {
+            <a class="btn-primary" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null">
+              @if (hasWhatsApp) {
+                <i class="bi bi-calendar-check" aria-hidden="true"></i>
+              } @else {
+                <i class="bi bi-telephone" aria-hidden="true"></i>
+              }
+              <span>{{ primaryCtaLabel }}</span>
+            </a>
+          }
+          @if (hasWhatsApp && hasPhone) {
+            <a class="btn-secondary" [href]="phoneUrl">
+              <i class="bi bi-telephone" aria-hidden="true"></i>
+              <span>Call Us</span>
+            </a>
+          }
+        </div>
+        @if (hasPhone) {
+          <p class="hero-hint">Prefer to talk? <a [href]="phoneUrl">{{ business.phone }}</a></p>
+        }
+      </div>
+
+      <div class="hero-collage" aria-hidden="true">
+        <div class="collage-shape collage-ring"></div>
+        <div class="collage-shape collage-dot"></div>
+
+        <div class="collage-main">
+          @if (heroImage && !heroImageError) {
+            <img [src]="heroImage" [alt]="business.businessName" loading="eager" (error)="onHeroImageError()" />
+          } @else {
+            <div class="collage-fallback">
+              <div class="collage-fallback-rings" aria-hidden="true"></div>
+              <i class="bi bi-cup-hot" aria-hidden="true"></i>
+            </div>
+          }
+        </div>
+
+        @if (heroImage2 && !heroImage2Error && heroImage2 !== heroImage) {
+          <div class="collage-tile">
+            <img [src]="heroImage2" [alt]="" loading="lazy" (error)="onHeroImage2Error()" />
+          </div>
+        }
+
+        <div class="collage-badge">
+          <i class="bi bi-star-fill" aria-hidden="true"></i>
+          <span>Made<br />fresh</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="cafe-about" aria-labelledby="about-title">
+    <div class="section-container">
+      <div class="about-grid">
+        <div class="about-text">
+          <span class="section-kicker">Our Story</span>
+          <h2 id="about-title">A place worth lingering</h2>
+          <p class="about-body-main">{{ displayDescription }}</p>
+          @if (business.tagline) {
+            <blockquote class="about-quote">
+              <i class="bi bi-quote" aria-hidden="true"></i>
+              <span>“{{ business.tagline }}”</span>
+            </blockquote>
+          }
+        </div>
+
+        <div class="about-side">
+          <div class="menu-preview">
+            <span class="menu-preview-label">On the menu today</span>
+            <div class="menu-chips">
+              @for (item of displayMenu; track $index; let i = $index) {
+                @if (i < 3) {
+                  <span class="menu-chip">
+                    <i class="bi {{ serviceIcon(i) }}" aria-hidden="true"></i>
+                    {{ item }}
+                  </span>
+                }
+              }
+            </div>
+            @if (primaryCtaUrl) {
+              <a class="btn-text" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null">
+                <span>{{ hasWhatsApp ? 'See the full menu' : 'Call for the menu' }}</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </a>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MENU / OFFERINGS -->
+  <section id="menu" class="cafe-menu" aria-labelledby="menu-title">
+    <div class="section-container">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Menu Highlights</span>
+          <h2 id="menu-title">What We Serve</h2>
+        </div>
+        <p class="section-intro">Our kitchen keeps it simple — good ingredients, cooked with care, served all day.</p>
+      </div>
+
+      <div class="menu-grid" role="list">
+        @for (item of displayMenu; track $index; let i = $index) {
+          @if (primaryCtaUrl) {
+            <a class="menu-card" role="listitem" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null"
+              [attr.aria-label]="'Ask about ' + item + (hasWhatsApp ? ' on WhatsApp' : ' by phone')">
+              <div class="menu-card-icon" aria-hidden="true">
+                <i class="bi {{ serviceIcon(i) }}"></i>
+              </div>
+              <span class="menu-card-index">{{ (i + 1).toString().padStart(2, '0') }}</span>
+              <h3 class="menu-card-name">{{ item }}</h3>
+              <span class="menu-card-cta">
+                <span>{{ hasWhatsApp ? 'Ask us' : 'Call us' }}</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </span>
+            </a>
+          } @else {
+            <div class="menu-card menu-card-static" role="listitem">
+              <div class="menu-card-icon" aria-hidden="true">
+                <i class="bi {{ serviceIcon(i) }}"></i>
+              </div>
+              <span class="menu-card-index">{{ (i + 1).toString().padStart(2, '0') }}</span>
+              <h3 class="menu-card-name">{{ item }}</h3>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- RESERVATION BAND -->
+  <section class="cafe-band" aria-labelledby="band-title">
+    <div class="section-container">
+      <div class="band-inner">
+        <div>
+          <span class="band-kicker">Reservations &amp; Takeaway</span>
+          <h2 id="band-title">Hungry already?</h2>
+          <p>Grab a table or order ahead — we’ll have it ready when you arrive.</p>
+        </div>
+        <div class="band-actions">
+          @if (hasWhatsApp) {
+            <a class="btn-primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-whatsapp" aria-hidden="true"></i>
+              <span>WhatsApp Us</span>
+            </a>
+          }
+          @if (hasPhone) {
+            <a class="btn-ghost" [href]="phoneUrl">
+              <i class="bi bi-telephone" aria-hidden="true"></i>
+              <span>Call to Order</span>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section id="gallery" class="cafe-gallery" aria-labelledby="gallery-title">
+    <div class="section-container">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Gallery</span>
+          <h2 id="gallery-title">Plates &amp; Moments</h2>
+        </div>
+      </div>
+
+      @if (hasImages) {
+        <div class="gallery-grid" role="list">
+          @for (image of galleryImages; track $index; let i = $index) {
+            <figure class="gallery-item {{ galleryClass(i) }}" role="listitem" (click)="openLightbox(i)" tabindex="0"
+              (keydown.enter)="openLightbox(i)" (keydown.space)="openLightbox(i)" [attr.aria-label]="'View gallery image ' + (i + 1)">
+              @if (!galleryImageErrors[i]) {
+                <img [src]="image" [alt]="business.businessName + ' gallery ' + (i + 1)" loading="lazy" (error)="onGalleryImageError(i)" />
+              } @else {
+                <div class="gallery-fallback"><i class="bi bi-image"></i></div>
+              }
+              <figcaption class="gallery-caption" aria-hidden="true">
+                <span>{{ business.businessName }}</span>
+                <i class="bi bi-arrows-fullscreen"></i>
+              </figcaption>
+            </figure>
+          }
+        </div>
+      } @else {
+        <div class="gallery-placeholder" aria-hidden="true">
+          <div class="gallery-placeholder-content">
+            <i class="bi bi-images"></i>
+            <p>Gallery coming soon</p>
+            <span class="placeholder-hint">Add photos of your plates and space from the admin dashboard</span>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="cafe-contact" aria-labelledby="contact-title">
+    <div class="section-container">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Visit Us</span>
+          <h2 id="contact-title">Find the café</h2>
+        </div>
+      </div>
+
+      @if (hasContactInfo) {
+        <div class="contact-grid">
+          @if (hasPhone) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-telephone-fill"></i>
+              </div>
+              <div class="contact-content">
+                <h3>Call Us</h3>
+                <a [href]="phoneUrl">{{ business.phone }}</a>
+              </div>
+            </div>
+          }
+
+          @if (hasWhatsApp) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-whatsapp"></i>
+              </div>
+              <div class="contact-content">
+                <h3>WhatsApp</h3>
+                <a [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">Book &amp; order here</a>
+              </div>
+            </div>
+          }
+
+          @if (business.address) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-geo-alt-fill"></i>
+              </div>
+              <div class="contact-content">
+                <h3>Address</h3>
+                <p>{{ business.address }}</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (business.address) {
+          <div class="contact-actions">
+            <a class="btn-maps" [href]="mapsUrl" target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-geo-alt" aria-hidden="true"></i>
+              <span>Get Directions</span>
+            </a>
+          </div>
+        }
+      } @else {
+        <div class="contact-placeholder">
+          <i class="bi bi-envelope" aria-hidden="true"></i>
+          <p>Contact information will be displayed here once configured.</p>
+        </div>
+      }
+    </div>
+  </section>
+</main>
+
+<!-- FOOTER -->
+<footer class="restaurant02-footer" role="contentinfo">
+  <div class="footer-container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          @if (business.logoUrl) {
+            <img [src]="business.logoUrl" [alt]="business.businessName" />
+          } @else {
+            <span><i class="bi bi-cup-hot" aria-hidden="true"></i> {{ business.businessName }}</span>
+          }
+        </div>
+        <p>{{ business.tagline || 'Great coffee and good food, every day.' }}</p>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <h4>Navigate</h4>
+        <a (click)="scrollTo('home')">Home</a>
+        <a (click)="scrollTo('about')">About</a>
+        <a (click)="scrollTo('menu')">Menu</a>
+        <a (click)="scrollTo('gallery')">Gallery</a>
+        <a (click)="scrollTo('contact')">Contact</a>
+      </nav>
+
+      <div class="footer-contact">
+        <h4>Contact</h4>
+        @if (hasPhone) {
+          <a [href]="phoneUrl">
+            <i class="bi bi-telephone" aria-hidden="true"></i>
+            {{ business.phone }}
+          </a>
+        }
+        @if (hasWhatsApp) {
+          <a [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-whatsapp" aria-hidden="true"></i>
+            WhatsApp
+          </a>
+        }
+        @if (business.address) {
+          <address>
+            <i class="bi bi-geo-alt" aria-hidden="true"></i>
+            {{ business.address }}
+          </address>
+        }
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; {{ currentYear }} {{ business.businessName }}. All rights reserved.</p>
+      <span class="footer-type">{{ categoryLabel }}</span>
+    </div>
+  </div>
+</footer>
+
+<!-- LIGHTBOX -->
+@if (lightboxOpen && hasImages) {
+  <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true" aria-label="Image gallery">
+    <button class="lightbox-close" (click)="$event.stopPropagation(); closeLightbox()" aria-label="Close gallery" type="button">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <button class="lightbox-nav prev" (click)="$event.stopPropagation(); prevLightbox()" aria-label="Previous image" type="button" [hidden]="galleryImages.length <= 1">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="lightbox-nav next" (click)="$event.stopPropagation(); nextLightbox()" aria-label="Next image" type="button" [hidden]="galleryImages.length <= 1">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <div class="lightbox-content">
+      @if (!galleryImageErrors[lightboxIndex]) {
+        <img [src]="galleryImages[lightboxIndex]" [alt]="business.businessName + ' gallery ' + (lightboxIndex + 1)" />
+      } @else {
+        <div class="lightbox-fallback"><i class="bi bi-image"></i></div>
+      }
+    </div>
+    <div class="lightbox-counter" aria-hidden="true">
+      {{ lightboxIndex + 1 }} / {{ galleryImages.length }}
+    </div>
+  </div>
+}

@@ -2,7 +2,11 @@ import { Injectable, inject, ApplicationRef, createComponent, EnvironmentInjecto
 import { toPng } from 'html-to-image';
 import { Business } from '../models/business.model';
 import { CommonModule } from '@angular/common';
-import { getTemplateComponent } from '../components/demo/templates/template.registry';
+import {
+  getDefaultThemeForTemplate,
+  getTemplateComponent,
+} from '../components/demo/templates/template.registry';
+import { resolveThemeConfig } from '../components/demo/themes/theme.registry';
 
 import '../components/demo/templates/template.init';
 
@@ -233,6 +237,11 @@ export class ScreenshotService {
         hostElement: container,
       });
       componentRef.instance.business = business;
+      componentRef.instance.theme = resolveThemeConfig(
+        business.themeId,
+        business.themeOptions,
+        getDefaultThemeForTemplate(templateId)
+      );
       componentRef.changeDetectorRef.detectChanges();
 
       // Wait for Angular to render
@@ -268,6 +277,87 @@ export class ScreenshotService {
       });
     });
     await Promise.all(loadPromises);
+  }
+
+  /**
+   * Render a template offscreen with the given business data and capture a
+   * bounded top-region thumbnail (the hero/nav area that defines the design)
+   * as a PNG data URL. Uses the exact same rendering pipeline as
+   * generateScreenshot, so template galleries show each template's real
+   * design instead of a placeholder. Explicit width/height make html-to-image
+   * capture exactly that region (content below is clipped, not squashed).
+   */
+  async generateThumbnail(
+    business: Business,
+    width = 1440,
+    height = 1000,
+    pixelRatio = 1.5
+  ): Promise<string> {
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: ${width}px;
+      height: ${height}px;
+      overflow: hidden;
+      background: white;
+      z-index: -1;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
+
+    let componentRef: any = null;
+
+    try {
+      const templateId = business.templateId || 'salon-01';
+      const templateComponent = getTemplateComponent(templateId);
+
+      if (!templateComponent) {
+        throw new Error(`Unsupported template: ${templateId}`);
+      }
+
+      componentRef = createComponent(templateComponent, {
+        environmentInjector: this.injector,
+        hostElement: container,
+      });
+      componentRef.instance.business = business;
+      componentRef.instance.theme = resolveThemeConfig(
+        business.themeId,
+        business.themeOptions,
+        getDefaultThemeForTemplate(templateId)
+      );
+      componentRef.changeDetectorRef.detectChanges();
+
+      // Let Angular paint before measuring/capturing.
+      await new Promise((r) => setTimeout(r, 800));
+      await this.waitForImages(container);
+
+      // CORS-safe image capture + keep fixed headers inside the container.
+      const imageMap = await this.prefetchImages(this.collectImageUrls(container));
+      const cleanup = this.replaceImageSources(container, imageMap);
+      const restorePositioning = this.neutralizeFixedPositioning(container);
+
+      try {
+        return await toPng(container, {
+          width,
+          height,
+          pixelRatio,
+          backgroundColor: '#ffffff',
+        });
+      } finally {
+        restorePositioning();
+        cleanup();
+      }
+    } catch (error) {
+      console.error('[Screenshot] Thumbnail generation failed:', error);
+      throw error;
+    } finally {
+      if (componentRef) {
+        componentRef.destroy();
+      }
+      document.body.removeChild(container);
+    }
   }
 
   /**

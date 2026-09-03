@@ -451,6 +451,16 @@
   color: var(--admin-gold) !important;
 }
 
+.theme-pill {
+  color: var(--color-text-secondary) !important;
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.theme-pill i {
+  color: var(--color-text-tertiary) !important;
+}
+
 /* ============ CARD ACTIONS ============ */
 .card-actions {
   display: flex;

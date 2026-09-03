@@ -14,28 +14,31 @@
   box-sizing: border-box;
 }
 
-/* CSS Custom Properties - Boutique Luxe Design System */
+/* CSS Custom Properties — mapped onto the shared theme variables so a
+   selected theme (applied as inline --theme-* on the host) drives the whole
+   design. Every value falls back to the Black & Gold palette when no theme
+   is set, which is also this template's default theme. */
 :host {
-  --color-bg: #0e0d0c;
-  --color-bg-alt: #141210;
-  --color-bg-elevated: #1a1715;
-  --color-bg-deep: #0a0908;
-  --color-text: #f3ede6;
-  --color-text-secondary: #b3a89c;
-  --color-text-tertiary: #7d736a;
-  --color-text-inverse: #14110f;
-  --color-accent: #d3a08c;
-  --color-accent-hover: #e2b7a6;
-  --color-accent-deep: #8a5f4e;
-  --color-accent-glow: rgba(211, 160, 140, 0.16);
-  --color-border: rgba(243, 237, 230, 0.12);
-  --color-border-strong: rgba(243, 237, 230, 0.24);
+  --color-bg: var(--theme-bg, #0e0d0c);
+  --color-bg-alt: var(--theme-surface, #141210);
+  --color-bg-elevated: var(--theme-surface-alt, #1a1715);
+  --color-bg-deep: var(--theme-dark-bg, #0a0908);
+  --color-text: var(--theme-text, #f3ede6);
+  --color-text-secondary: var(--theme-text-muted, #b3a89c);
+  --color-text-tertiary: var(--theme-text-subtle, #7d736a);
+  --color-text-inverse: var(--theme-accent-text, #14110f);
+  --color-accent: var(--theme-accent, #d3a08c);
+  --color-accent-hover: var(--theme-accent-bright, #e2b7a6);
+  --color-accent-deep: var(--theme-accent-strong, #8a5f4e);
+  --color-accent-glow: var(--theme-accent-soft, rgba(211, 160, 140, 0.16));
+  --color-border: var(--theme-border, rgba(243, 237, 230, 0.12));
+  --color-border-strong: color-mix(in srgb, var(--color-text) 24%, transparent);
   --color-whatsapp: #25d366;
   --color-white: #ffffff;
-  --color-black: #0e0d0c;
+  --color-black: var(--theme-bg, #0e0d0c);
 
-  --font-heading: 'Didot', 'Bodoni MT', 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: var(--theme-font-heading, 'Playfair Display', Georgia, serif);
+  --font-body: var(--theme-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
 
   --space-xs: 0.375rem;
   --space-sm: 0.75rem;
@@ -45,8 +48,8 @@
   --space-2xl: 6.5rem;
 
   --radius-sm: 6px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
+  --radius-md: var(--theme-radius, 14px);
+  --radius-lg: calc(var(--theme-radius, 14px) + 8px);
   --radius-full: 100px;
 
   --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.35);
@@ -472,7 +475,7 @@
   padding: calc(var(--header-height) + var(--space-lg)) 0 var(--space-xl);
   background:
     radial-gradient(ellipse 60% 50% at 85% 20%, var(--color-accent-glow), transparent 70%),
-    radial-gradient(ellipse 50% 40% at 10% 85%, rgba(138, 95, 78, 0.12), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 10% 85%, color-mix(in srgb, var(--color-accent-deep) 12%, transparent), transparent 70%),
     var(--color-bg);
   overflow: hidden;
 }
@@ -1392,4 +1395,150 @@
   .hero-image-wrapper {
     max-height: 700px;
   }
+}
+
+/* ============================================
+   THEME OPTIONS — driven by themeOptionClasses()
+   (button / hero / card / gallery style choices)
+   ============================================ */
+
+/* ---- Button shapes ---- */
+:host.theme-btn-soft .btn-primary,
+:host.theme-btn-soft .btn-secondary,
+:host.theme-btn-soft .btn-whatsapp,
+:host.theme-btn-soft .btn-maps,
+:host.theme-btn-soft .header-cta,
+:host.theme-btn-soft .mobile-cta-btn {
+  border-radius: var(--theme-radius, 14px);
+}
+
+:host.theme-btn-sharp .btn-primary,
+:host.theme-btn-sharp .btn-secondary,
+:host.theme-btn-sharp .btn-whatsapp,
+:host.theme-btn-sharp .btn-maps,
+:host.theme-btn-sharp .header-cta,
+:host.theme-btn-sharp .mobile-cta-btn {
+  border-radius: 2px;
+}
+
+/* ---- Hero: centered ---- */
+:host.theme-hero-centered .hero-grid {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(2rem, 5vw, 3.5rem);
+}
+
+:host.theme-hero-centered .hero-content {
+  max-width: 720px;
+}
+
+:host.theme-hero-centered .hero-actions {
+  justify-content: center;
+}
+
+:host.theme-hero-centered .hero-visual {
+  order: 2;
+}
+
+:host.theme-hero-centered .hero-image-wrapper {
+  max-height: 480px;
+}
+
+/* ---- Hero: image focused (full-bleed backdrop) ---- */
+:host.theme-hero-image .hero-visual {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+:host.theme-hero-image .hero-image-wrapper {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+:host.theme-hero-image .hero-image-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(10, 8, 6, 0.74) 0%,
+    rgba(10, 8, 6, 0.38) 55%,
+    rgba(10, 8, 6, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+:host.theme-hero-image .hero-fallback,
+:host.theme-hero-image .hero-fallback .fallback-content {
+  display: none;
+}
+
+:host.theme-hero-image .hero-grid {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+}
+
+:host.theme-hero-image .hero-content {
+  max-width: 760px;
+}
+
+:host.theme-hero-image .hero-actions {
+  justify-content: center;
+}
+
+/* ---- Card styles ---- */
+:host.theme-card-flat .contact-item {
+  border-color: transparent;
+  background: transparent;
+}
+
+:host.theme-card-elevated .contact-item {
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+}
+
+/* ---- Gallery: uniform grid ---- */
+:host.theme-gallery-grid .gallery-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+:host.theme-gallery-grid .gallery-item,
+:host.theme-gallery-grid .gallery-item.featured {
+  aspect-ratio: 1;
+}
+
+:host.theme-gallery-grid .gallery-secondary {
+  display: contents;
+}
+
+/* ---- Gallery: masonry columns ---- */
+:host.theme-gallery-masonry .gallery-grid {
+  display: block;
+  columns: 3 220px;
+  column-gap: 0.75rem;
+}
+
+:host.theme-gallery-masonry .gallery-secondary {
+  display: block;
+}
+
+:host.theme-gallery-masonry .gallery-item,
+:host.theme-gallery-masonry .gallery-item.featured {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
+  aspect-ratio: auto;
+}
+
+:host.theme-gallery-masonry .gallery-item img {
+  height: auto;
 }

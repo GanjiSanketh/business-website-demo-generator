@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { ThemeOptions } from '../components/demo/themes/theme.registry';
 
 export interface Business {
   id?: string;
@@ -15,6 +16,11 @@ export interface Business {
   services?: string[];
   slug: string;
   status: 'draft' | 'published';
+  /** Selected theme preset id; resolved against the theme registry with a
+   *  sensible per-template default when absent. */
+  themeId?: string;
+  /** Optional style overrides on top of the selected theme preset. */
+  themeOptions?: ThemeOptions;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

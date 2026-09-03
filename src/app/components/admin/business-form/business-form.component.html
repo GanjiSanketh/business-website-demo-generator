@@ -1,11 +1,13 @@
-<div class="form-page">
-  <div class="page-header">
-    <a routerLink="/admin" class="back-link">
-      <i class="bi bi-arrow-left"></i>
-      Back to Dashboard
-    </a>
-    <h1>{{ isEditMode() ? 'Edit Business' : 'Create Business' }}</h1>
-  </div>
+<div class="form-page" [class.form-builder]="builderLayout()">
+  @if (!builderLayout()) {
+    <div class="page-header">
+      <a routerLink="/admin" class="back-link">
+        <i class="bi bi-arrow-left"></i>
+        Back to Dashboard
+      </a>
+      <h1>{{ isEditMode() ? 'Edit Business' : 'Create Business' }}</h1>
+    </div>
+  }
 
   @if (loading()) {
     <div class="loading-state">
@@ -13,6 +15,777 @@
       <p>Loading business data...</p>
     </div>
   } @else {
+    @if (builderLayout()) {
+      <!-- ============ BUILDER WORKSPACE (edit mode) ============ -->
+      @if (notFoundBusiness()) {
+        <div class="builder-not-found">
+          <div class="builder-not-found-icon">
+            <i class="bi bi-building-x"></i>
+          </div>
+          <h2>Business not found</h2>
+          <p>
+            This business may have been deleted, or the link you followed is
+            incorrect.
+          </p>
+          <a routerLink="/admin" class="btn-save">
+            <i class="bi bi-arrow-left"></i>
+            Back to Dashboard
+          </a>
+        </div>
+      } @else {
+        <div class="builder" [formGroup]="form">
+          <!-- ── TOP ACTION BAR ── -->
+          <div class="builder-top">
+            <div class="bt-left">
+              <a
+                routerLink="/admin"
+                class="bt-back"
+                title="Back to Dashboard"
+                aria-label="Back to Dashboard"
+              >
+                <i class="bi bi-arrow-left"></i>
+              </a>
+              <div class="bt-title">
+                <div class="bt-name-row">
+                  <h1 class="bt-name">
+                    {{ (form.get('businessName')?.value || 'Untitled business') }}
+                  </h1>
+                  <span
+                    class="bt-status"
+                    [class.published]="form.get('status')?.value === 'published'"
+                  >
+                    <i
+                      class="bi"
+                      [ngClass]="
+                        form.get('status')?.value === 'published'
+                          ? 'bi-globe2'
+                          : 'bi-file-earmark-text'
+                      "
+                    ></i>
+                    {{ form.get('status')?.value === 'published' ? 'Published' : 'Draft' }}
+                  </span>
+                </div>
+                <div class="bt-meta">
+                  <span>
+                    <i class="bi bi-tag"></i>
+                    {{ categoryNameOf(form.get('category')?.value || '') }}
+                  </span>
+                  <span class="bt-meta-sep" aria-hidden="true">·</span>
+                  <span>{{ builderTemplateName || 'No design yet' }}</span>
+                  @if (builderThemeName) {
+                    <span class="bt-meta-sep" aria-hidden="true">·</span>
+                    <span>
+                      <i class="bi bi-palette"></i>
+                      {{ builderThemeName }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="bt-right">
+              <span
+                class="bt-save-state"
+                [class.dirty]="builderDirty"
+                [class.saving]="saving()"
+              >
+                @if (saving()) {
+                  <span class="bt-save-spinner" aria-hidden="true"></span>
+                  Saving…
+                } @else if (builderDirty) {
+                  <i class="bi bi-circle-fill" aria-hidden="true"></i>
+                  Unsaved changes
+                } @else {
+                  <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                  Saved
+                }
+              </span>
+
+              <button
+                type="button"
+                class="bt-btn bt-btn-ghost"
+                (click)="copyDemoUrl()"
+                title="Copy demo URL"
+                aria-label="Copy demo URL"
+              >
+                <i class="bi" [ngClass]="copySuccess() ? 'bi-check-lg' : 'bi-link-45deg'"></i>
+              </button>
+
+              <button
+                type="button"
+                class="bt-btn bt-btn-ghost"
+                (click)="openDemo()"
+                [disabled]="!demoUrl()"
+                title="Open the demo website in a new tab"
+              >
+                <i class="bi bi-box-arrow-up-right"></i>
+                View Website
+              </button>
+
+              @if (form.get('status')?.value === 'published') {
+                <button
+                  type="button"
+                  class="bt-btn bt-btn-primary"
+                  [disabled]="saving()"
+                  (click)="onSubmit('published')"
+                >
+                  @if (saving()) {
+                    <span class="spinner"></span>
+                    Saving…
+                  } @else {
+                    <i class="bi bi-globe2"></i>
+                    Update Website
+                  }
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="bt-btn bt-btn-ghost"
+                  [disabled]="saving()"
+                  (click)="onSubmit('draft')"
+                >
+                  @if (saving()) {
+                    <span class="spinner"></span>
+                  } @else {
+                    <i class="bi bi-file-earmark-check"></i>
+                  }
+                  Save Draft
+                </button>
+                <button
+                  type="button"
+                  class="bt-btn bt-btn-primary"
+                  [disabled]="saving()"
+                  (click)="onSubmit('published')"
+                >
+                  @if (saving()) {
+                    <span class="spinner"></span>
+                    Saving…
+                  } @else {
+                    <i class="bi bi-rocket-takeoff"></i>
+                    Publish
+                  }
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Builder alerts -->
+          @if (successMessage()) {
+            <div class="alert alert-success builder-alert">
+              <i class="bi bi-check-circle-fill"></i>
+              {{ successMessage() }}
+            </div>
+          }
+
+          @if (errorMessage()) {
+            <div class="alert alert-danger builder-alert">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (stepError()) {
+            <div class="step-error builder-alert" role="alert">
+              <i class="bi bi-exclamation-circle"></i>
+              {{ stepError() }}
+            </div>
+          }
+
+          <div class="builder-body" [class.panel-open]="panelOpen()">
+            <!-- ── LEFT · CONFIGURATION ── -->
+            <aside class="builder-config" aria-label="Website builder settings">
+              <nav class="b-sections" role="tablist" aria-label="Builder sections">
+                @for (sec of builderSections; track sec.id) {
+                  <button
+                    type="button"
+                    role="tab"
+                    [id]="'b-tab-' + sec.id"
+                    [attr.aria-selected]="builderSection() === sec.id"
+                    [attr.aria-controls]="'b-panel-' + sec.id"
+                    [class.active]="builderSection() === sec.id"
+                    (click)="setBuilderSection(sec.id)"
+                    (keydown)="setBuilderSectionOnKey($event, sec.id)"
+                  >
+                    <span class="b-section-icon" aria-hidden="true">
+                      <i [class]="'bi ' + sec.icon"></i>
+                    </span>
+                    <span class="b-section-text">
+                      <span class="b-section-label">{{ sec.label }}</span>
+                      <span class="b-section-hint">{{ sec.hint }}</span>
+                    </span>
+                    @if (builderSection() === sec.id) {
+                      <i class="bi bi-check2 b-section-check" aria-hidden="true"></i>
+                    }
+                  </button>
+                }
+              </nav>
+
+              <div class="b-config-body">
+                @switch (builderSection()) {
+                  @case ('info') {
+                    <!-- ════ INFORMATION PANEL ════ -->
+                    <div class="b-panel" id="b-panel-info" role="tabpanel" aria-labelledby="b-tab-info">
+                      <div class="b-panel-head">
+                        <h2>Business Information</h2>
+                        <p>
+                          These details power the live preview on the right —
+                          no save needed to see changes.
+                        </p>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="b-businessName">Business Name *</label>
+                        <input
+                          id="b-businessName"
+                          type="text"
+                          formControlName="businessName"
+                          placeholder="e.g. ABC Salon"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label id="b-category-label">Category</label>
+                        <div
+                          class="b-cat-grid"
+                          role="radiogroup"
+                          aria-labelledby="b-category-label"
+                        >
+                          @for (cat of categories; track cat.id) {
+                            <button
+                              type="button"
+                              class="b-cat-chip"
+                              [class.selected]="selectedCategoryId === cat.id"
+                              role="radio"
+                              [attr.aria-checked]="selectedCategoryId === cat.id"
+                              title="{{ cat.description }}"
+                              (click)="selectCategory(cat.id)"
+                            >
+                              <i [class]="'bi ' + cat.icon" aria-hidden="true"></i>
+                              {{ cat.name }}
+                              @if (selectedCategoryId === cat.id) {
+                                <i class="bi bi-check-lg" aria-hidden="true"></i>
+                              }
+                            </button>
+                          }
+                        </div>
+                        <p class="b-field-hint">
+                          The category decides which website designs are available.
+                        </p>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="b-tagline">Tagline</label>
+                        <input
+                          id="b-tagline"
+                          type="text"
+                          formControlName="tagline"
+                          placeholder="e.g. Look Good. Feel Great."
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label for="b-description">Description</label>
+                        <textarea
+                          id="b-description"
+                          formControlName="description"
+                          rows="4"
+                          placeholder="Tell visitors about your business..."
+                        ></textarea>
+                      </div>
+
+                      <div class="b-block-title">Contact details</div>
+
+                      <div class="form-group">
+                        <label for="b-phone">Phone</label>
+                        <input
+                          id="b-phone"
+                          type="tel"
+                          formControlName="phone"
+                          placeholder="+1 234 567 8900"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label for="b-whatsapp">WhatsApp</label>
+                        <input
+                          id="b-whatsapp"
+                          type="tel"
+                          formControlName="whatsapp"
+                          placeholder="+1 234 567 8900"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label for="b-address">Address</label>
+                        <textarea
+                          id="b-address"
+                          formControlName="address"
+                          rows="2"
+                          placeholder="Full business address"
+                        ></textarea>
+                      </div>
+
+                      <div class="b-block-title">Logo</div>
+                      <p class="b-field-hint">
+                        Shown in the website header.
+                      </p>
+                      <div
+                        class="upload-area b-logo-area"
+                        [class.drag-over]="dragOverLogo()"
+                        (click)="bLogoInput.click()"
+                        (dragover)="onLogoDragOver($event)"
+                        (dragleave)="onLogoDragLeave($event)"
+                        (drop)="onLogoDrop($event)"
+                      >
+                        @if (logoPreview()) {
+                          <img [src]="logoPreview()" alt="Logo preview" class="logo-preview" />
+                        } @else {
+                          <div class="upload-placeholder">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                            <p>Click to upload logo</p>
+                            <span>PNG, JPG up to 5MB</span>
+                          </div>
+                        }
+                      </div>
+                      <input
+                        #bLogoInput
+                        type="file"
+                        accept="image/*"
+                        (change)="onLogoChange($event)"
+                        hidden
+                      />
+                    </div>
+                  }
+                  @case ('design') {
+                    <!-- ════ DESIGN PANEL (template + theme) ════ -->
+                    <div class="b-panel" id="b-panel-design" role="tabpanel" aria-labelledby="b-tab-design">
+                      <div class="b-panel-head">
+                        <h2>Website design</h2>
+                        <p>
+                          The layout visitors see on <strong>/demo/your-business</strong>.
+                          Your content is applied automatically — pick the design,
+                          then choose a style below.
+                        </p>
+                      </div>
+
+                      <div class="b-block-title">Template</div>
+                      @if (availableTemplates().length === 0) {
+                        <div class="template-empty">
+                          <div class="template-empty-icon">
+                            <i class="bi bi-stars"></i>
+                          </div>
+                          <h3>Templates coming soon</h3>
+                          <p>
+                            Website designs for
+                            <strong
+                              >{{
+                                categoryNameOf(form.get('category')?.value || '') ||
+                                  'this category'
+                              }}</strong
+                            >
+                            are on the way.
+                          </p>
+                          <button
+                            type="button"
+                            class="btn-save"
+                            (click)="setBuilderSection('info')"
+                          >
+                            <i class="bi bi-arrow-left"></i>
+                            Check the category
+                          </button>
+                        </div>
+                      } @else {
+                        <div
+                          class="template-grid b-template-grid"
+                          role="radiogroup"
+                          aria-label="Website template"
+                        >
+                          @for (tpl of availableTemplates(); track tpl.id) {
+                            <div
+                              class="template-card"
+                              [class.selected]="selectedTemplateId === tpl.id"
+                              role="radio"
+                              tabindex="0"
+                              [attr.aria-checked]="selectedTemplateId === tpl.id"
+                              (click)="selectTemplate(tpl.id)"
+                              (keydown)="selectTemplateOnKey($event, tpl.id)"
+                            >
+                              <div class="tpl-preview">
+                                @if (thumbFor(tpl)) {
+                                  <img
+                                    class="tpl-preview-img"
+                                    [src]="thumbFor(tpl) ?? ''"
+                                    [alt]="tpl.name + ' website preview'"
+                                  />
+                                } @else {
+                                  <div class="tpl-thumb" [class.tpl-dark]="tpl.appearance === 'dark'">
+                                    @if (imagePreviews().length > 0) {
+                                      <img class="tpl-thumb-img" [src]="imagePreviews()[0]" alt="" />
+                                    }
+                                    <div class="tpl-thumb-top">
+                                      @if (logoPreview()) {
+                                        <img class="tpl-thumb-logo" [src]="logoPreview()" alt="" />
+                                      } @else {
+                                        <span class="tpl-thumb-dot" aria-hidden="true"></span>
+                                      }
+                                      <span class="tpl-thumb-nav" aria-hidden="true">
+                                        <i></i><i></i><i></i><i></i><i></i>
+                                      </span>
+                                    </div>
+                                    <div class="tpl-thumb-body">
+                                      <span class="tpl-thumb-eyebrow">{{ categoryNameOf(tpl.categoryId) }}</span>
+                                      <span class="tpl-thumb-name">
+                                        {{ (form.get('businessName')?.value || 'Your Business Name') }}
+                                      </span>
+                                      <span class="tpl-thumb-tag">
+                                        {{ (form.get('tagline')?.value || 'Your tagline will appear here') }}
+                                      </span>
+                                    </div>
+                                    <div class="tpl-thumb-cta" aria-hidden="true">
+                                      <span class="tpl-thumb-btn tpl-thumb-btn-solid"></span>
+                                      <span class="tpl-thumb-btn"></span>
+                                    </div>
+                                  </div>
+                                }
+
+                                @if (selectedTemplateId === tpl.id) {
+                                  <span class="tpl-selected-badge">
+                                    <i class="bi bi-check-lg"></i>
+                                    Selected
+                                  </span>
+                                }
+                              </div>
+
+                              <div class="tpl-card-body">
+                                <div class="tpl-card-info">
+                                  <span class="tpl-card-name">{{ tpl.name }}</span>
+                                  <span class="tpl-card-desc">{{ tpl.description }}</span>
+                                </div>
+                              </div>
+
+                              <div class="tpl-card-actions">
+                                <button
+                                  type="button"
+                                  class="tpl-btn tpl-btn-preview"
+                                  (click)="$event.stopPropagation(); previewTemplate(tpl.id)"
+                                >
+                                  <i class="bi bi-eye"></i>
+                                  Preview
+                                </button>
+                                <button
+                                  type="button"
+                                  class="tpl-btn tpl-btn-use"
+                                  [class.tpl-btn-picked]="selectedTemplateId === tpl.id"
+                                  (click)="$event.stopPropagation(); selectTemplate(tpl.id)"
+                                >
+                                  @if (selectedTemplateId === tpl.id) {
+                                    <i class="bi bi-check-lg"></i>
+                                    In use
+                                  } @else {
+                                    <i class="bi bi-magic"></i>
+                                    Use Template
+                                  }
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+
+                        <div class="b-block-title b-block-title-gap">Style preset</div>
+                        <div
+                          class="theme-grid"
+                          role="radiogroup"
+                          aria-label="Theme preset"
+                        >
+                          @for (theme of availableThemes(); track theme.id) {
+                            <div
+                              class="theme-card"
+                              [class.selected]="selectedThemeId === theme.id"
+                              role="radio"
+                              tabindex="0"
+                              [attr.aria-checked]="selectedThemeId === theme.id"
+                              (click)="selectTheme(theme.id)"
+                              (keydown)="selectThemeOnKey($event, theme.id)"
+                            >
+                              <div
+                                class="theme-swatches"
+                                [class.theme-dark]="theme.appearance === 'dark'"
+                              >
+                                @for (swatch of theme.palette; track $index) {
+                                  <span
+                                    class="theme-swatch"
+                                    [style.background]="swatch"
+                                    [attr.title]="swatch"
+                                  ></span>
+                                }
+                              </div>
+                              <div class="theme-card-info">
+                                <span class="theme-card-name">{{ theme.name }}</span>
+                                <span class="theme-card-desc">{{ theme.description }}</span>
+                              </div>
+                              @if (selectedThemeId === theme.id) {
+                                <span class="theme-check">
+                                  <i class="bi bi-check-lg"></i>
+                                </span>
+                              }
+                            </div>
+                          }
+                        </div>
+
+                        <div class="b-block-title b-block-title-gap">Fine-tune</div>
+                        <div class="style-options b-style-options">
+                          <div class="style-group">
+                            <span class="style-label">Button style</span>
+                            <div class="style-pills" role="radiogroup" aria-label="Button style">
+                              @for (opt of buttonStyleOptions; track opt.value) {
+                                <button
+                                  type="button"
+                                  class="style-pill"
+                                  [class.active]="effectiveButtonStyle() === opt.value"
+                                  (click)="setButtonStyle(opt.value)"
+                                >
+                                  {{ opt.label }}
+                                </button>
+                              }
+                            </div>
+                          </div>
+
+                          <div class="style-group">
+                            <span class="style-label">Hero style</span>
+                            <div class="style-pills" role="radiogroup" aria-label="Hero style">
+                              @for (opt of heroStyleOptions; track opt.value) {
+                                <button
+                                  type="button"
+                                  class="style-pill"
+                                  [class.active]="effectiveHeroStyle() === opt.value"
+                                  (click)="setHeroStyle(opt.value)"
+                                >
+                                  {{ opt.label }}
+                                </button>
+                              }
+                            </div>
+                          </div>
+
+                          <div class="style-group">
+                            <span class="style-label">Gallery style</span>
+                            <div class="style-pills" role="radiogroup" aria-label="Gallery style">
+                              @for (opt of galleryStyleOptions; track opt.value) {
+                                <button
+                                  type="button"
+                                  class="style-pill"
+                                  [class.active]="effectiveGalleryStyle() === opt.value"
+                                  (click)="setGalleryStyle(opt.value)"
+                                >
+                                  {{ opt.label }}
+                                </button>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @case ('content') {
+                    <!-- ════ CONTENT PANEL (services + photos) ════ -->
+                    <div class="b-panel" id="b-panel-content" role="tabpanel" aria-labelledby="b-tab-content">
+                      <div class="b-panel-head">
+                        <h2>Services & Photos</h2>
+                        <p>
+                          Services appear as offerings on your website; photos
+                          power the hero, about section and gallery.
+                        </p>
+                      </div>
+
+                      <div class="b-block-title">Services / Offerings</div>
+                      <div class="services-list">
+                        @for (service of services.controls; track $index; let i = $index) {
+                          <div class="service-item">
+                            <input
+                              type="text"
+                              [formControlName]="i"
+                              placeholder="e.g. Haircut, Styling..."
+                              (keydown.enter)="addServiceOnEnter($event)"
+                            />
+                            <button
+                              type="button"
+                              class="btn-remove"
+                              (click)="removeService(i)"
+                              [attr.aria-label]="'Remove service ' + (i + 1)"
+                            >
+                              <i class="bi bi-x-lg"></i>
+                            </button>
+                          </div>
+                        }
+                      </div>
+                      <button type="button" class="btn-add-service" (click)="addService()">
+                        <i class="bi bi-plus-lg"></i>
+                        Add service
+                      </button>
+
+                      <div class="b-block-title b-block-title-gap">Business Photos</div>
+                      <p class="b-field-hint">
+                        The first photo becomes the cover/hero image.
+                      </p>
+                      <div class="images-grid b-images-grid">
+                        @for (preview of imagePreviews(); track $index; let i = $index) {
+                          <div class="image-item" [class.cover]="i === 0">
+                            <img [src]="preview" alt="Image {{ i + 1 }}" />
+                            @if (i === 0) {
+                              <span class="cover-badge">Cover</span>
+                            } @else {
+                              <button
+                                type="button"
+                                class="btn-cover"
+                                (click)="setAsCover(i)"
+                                title="Set as cover image"
+                              >
+                                <i class="bi bi-star"></i>
+                              </button>
+                            }
+                            <button
+                              type="button"
+                              class="btn-remove-image"
+                              (click)="removeImage(i)"
+                              [attr.aria-label]="'Remove photo ' + (i + 1)"
+                            >
+                              <i class="bi bi-x-lg"></i>
+                            </button>
+                          </div>
+                        }
+                        <button
+                          type="button"
+                          class="image-upload-btn"
+                          (click)="bImagesInput.click()"
+                        >
+                          <i class="bi bi-plus-lg"></i>
+                          <span>Add photos</span>
+                        </button>
+                      </div>
+                      <p class="b-field-hint">
+                        Drag & drop photos here or click to browse (up to 5MB each).
+                      </p>
+                      <input
+                        #bImagesInput
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        (change)="onImagesChange($event)"
+                        hidden
+                      />
+                    </div>
+                  }
+                }
+              </div>
+            </aside>
+
+            <!-- ── CENTER · LIVE PREVIEW ── -->
+            <section class="builder-stage" aria-label="Live website preview">
+              <div class="b-stage-top">
+                <div class="b-stage-title">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                  Live preview
+                  <span class="b-stage-sub">your latest changes, no save needed</span>
+                </div>
+                <div class="b-stage-tools">
+                  <div class="b-devices" role="group" aria-label="Preview device width">
+                    <button
+                      type="button"
+                      class="b-device"
+                      [class.active]="builderDevice() === 'desktop'"
+                      [attr.aria-pressed]="builderDevice() === 'desktop'"
+                      (click)="setBuilderDevice('desktop')"
+                    >
+                      <i class="bi bi-display" aria-hidden="true"></i>
+                      <span>Desktop</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="b-device"
+                      [class.active]="builderDevice() === 'tablet'"
+                      [attr.aria-pressed]="builderDevice() === 'tablet'"
+                      (click)="setBuilderDevice('tablet')"
+                    >
+                      <i class="bi bi-tablet" aria-hidden="true"></i>
+                      <span>Tablet</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="b-device"
+                      [class.active]="builderDevice() === 'mobile'"
+                      [attr.aria-pressed]="builderDevice() === 'mobile'"
+                      (click)="setBuilderDevice('mobile')"
+                    >
+                      <i class="bi bi-phone" aria-hidden="true"></i>
+                      <span>Mobile</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    class="b-stage-btn"
+                    title="Refresh preview"
+                    aria-label="Refresh live preview"
+                    (click)="mountBuilderPreview()"
+                  >
+                    <i class="bi bi-arrow-clockwise"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="b-stage-btn b-configure-btn"
+                    [class.active]="panelOpen()"
+                    (click)="panelOpen.set(!panelOpen())"
+                    aria-expanded="panelOpen()"
+                    aria-controls="builder-config-panel"
+                  >
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                    Configure
+                  </button>
+                </div>
+              </div>
+
+              <div class="b-stage-area" #builderStageArea>
+                @if (builderPreviewError()) {
+                  <div class="b-preview-error">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    {{ builderPreviewError() }}
+                  </div>
+                } @else {
+                  <div class="b-browser">
+                    <div class="b-browser-bar">
+                      <span class="b-browser-dots" aria-hidden="true">
+                        <i></i><i></i><i></i>
+                      </span>
+                      <span class="b-browser-url">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        {{ demoUrl() || ('/demo/' + (form.get('businessName')?.value || '')) }}
+                      </span>
+                    </div>
+                    <div class="b-browser-body">
+                      <div class="bp-wrap" #builderScaleWrap>
+                        <div
+                          class="bp-viewport"
+                          #builderViewport
+                          (click)="builderPreviewClickGuard($event)"
+                        >
+                          <div #builderMount></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+
+          @if (panelOpen()) {
+            <div
+              class="b-drawer-scrim"
+              (click)="panelOpen.set(false)"
+              aria-hidden="true"
+            ></div>
+          }
+        </div>
+      }
+    } @else {
     @if (successMessage()) {
       <div class="alert alert-success">
         <i class="bi bi-check-circle-fill"></i>
@@ -41,10 +814,44 @@
       </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="business-form">
-      <div class="form-grid">
-        <!-- Left column -->
-        <div class="form-col">
+    <form [formGroup]="form" (ngSubmit)="stepSubmitGuard($event)" class="business-form">
+      <!-- ============ STEPPER ============ -->
+      <div class="form-stepper" aria-label="Business setup steps">
+        @for (def of stepDefs; track $index; let i = $index) {
+          <button
+            type="button"
+            class="step-item"
+            [class.active]="currentStep() === i + 1"
+            [class.done]="isStepDone(i + 1)"
+            (click)="goToStep(i + 1)"
+            [disabled]="i + 1 > currentStep()"
+            [attr.aria-current]="currentStep() === i + 1 ? 'step' : null"
+          >
+            <span class="step-indicator">
+              @if (isStepDone(i + 1)) {
+                <i class="bi bi-check-lg"></i>
+              } @else {
+                <i [class]="'bi ' + def.icon"></i>
+              }
+            </span>
+            <span class="step-label">{{ def.label }}</span>
+          </button>
+          @if (i < stepDefs.length - 1) {
+            <span class="step-connector"></span>
+          }
+        }
+      </div>
+
+      @if (stepError()) {
+        <div class="step-error" role="alert">
+          <i class="bi bi-exclamation-circle"></i>
+          {{ stepError() }}
+        </div>
+      }
+
+      <!-- ============ STEP 1 · BUSINESS INFORMATION ============ -->
+      @if (currentStep() === 1) {
+        <div class="step-panel">
           <div class="form-card">
             <h2 class="card-title">
               <i class="bi bi-info-circle"></i>
@@ -65,18 +872,54 @@
               }
             </div>
 
-            <div class="form-group">
-              <label for="category">Category *</label>
-              <select
-                id="category"
-                formControlName="category"
-                [class.invalid]="isFieldInvalid('category')"
+            <div class="form-group category-group">
+              <label id="category-label">Business Category *</label>
+              <div
+                class="category-grid"
+                role="radiogroup"
+                aria-labelledby="category-label"
               >
-                <option value="">Select category</option>
-                @for (cat of categories; track cat) {
-                  <option [value]="cat">{{ cat }}</option>
+                @for (cat of categories; track cat.id) {
+                  <div
+                    class="category-card"
+                    [class.selected]="selectedCategoryId === cat.id"
+                    role="radio"
+                    tabindex="0"
+                    [attr.aria-checked]="selectedCategoryId === cat.id"
+                    (click)="selectCategory(cat.id)"
+                    (keydown)="selectCategoryOnKey($event, cat.id)"
+                  >
+                    <span class="category-card-icon" aria-hidden="true">
+                      <i [class]="'bi ' + cat.icon"></i>
+                    </span>
+                    <span class="category-card-body">
+                      <span class="category-card-name">{{ cat.name }}</span>
+                      <span class="category-card-desc">{{ cat.description }}</span>
+                    </span>
+                    <span class="category-card-foot">
+                      @if (categoryTemplateCount(cat.id) > 0) {
+                        <span class="category-count">
+                          <i class="bi bi-layout-text-window-reverse"></i>
+                          {{ categoryTemplateCount(cat.id) }}
+                          {{ categoryTemplateCount(cat.id) === 1 ? 'design' : 'designs' }}
+                        </span>
+                      } @else {
+                        <span class="category-soon">Templates coming soon</span>
+                      }
+                      @if (selectedCategoryId === cat.id) {
+                        <span class="category-check" aria-hidden="true">
+                          <i class="bi bi-check-lg"></i>
+                        </span>
+                      }
+                    </span>
+                  </div>
                 }
-              </select>
+              </div>
+              <p class="category-hint">
+                <i class="bi bi-info-circle"></i>
+                The category decides which website designs are available —
+                choose the one closest to your business.
+              </p>
               @if (isFieldInvalid('category')) {
                 <span class="error-text">Category is required.</span>
               }
@@ -101,6 +944,13 @@
                 placeholder="Tell visitors about your business..."
               ></textarea>
             </div>
+          </div>
+
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-telephone"></i>
+              Contact Details
+            </h2>
 
             <div class="form-row">
               <div class="form-group">
@@ -138,44 +988,6 @@
             </div>
           </div>
 
-          <!-- Website Template -->
-          <div class="form-card">
-            <h2 class="card-title">
-              <i class="bi bi-layout-text-window-reverse"></i>
-              Website Template
-            </h2>
-
-            @if (availableTemplates().length > 0) {
-              <div class="template-grid" role="radiogroup" aria-label="Website template">
-                @for (tpl of availableTemplates(); track tpl.id; let i = $index) {
-                  <label
-                    class="template-card"
-                    [class.selected]="form.get('templateId')?.value === tpl.id"
-                  >
-                    <input
-                      type="radio"
-                      formControlName="templateId"
-                      [value]="tpl.id"
-                      class="visually-hidden"
-                    />
-                    <span class="template-card-index">{{ (i + 1) | number: '2.0-0' }}</span>
-                    <span class="template-card-check" aria-hidden="true">
-                      <i class="bi bi-check-circle-fill"></i>
-                    </span>
-                    <span class="template-card-category">{{ tpl.category }}</span>
-                    <span class="template-card-name">{{ tpl.name }}</span>
-                    @if (tpl.description) {
-                      <span class="template-card-desc">{{ tpl.description }}</span>
-                    }
-                  </label>
-                }
-              </div>
-            } @else {
-              <p class="template-empty-hint">Select a category above to see available templates.</p>
-            }
-          </div>
-
-          <!-- Services -->
           <div class="form-card">
             <h2 class="card-title">
               <i class="bi bi-list-check"></i>
@@ -189,6 +1001,7 @@
                     type="text"
                     [formControlName]="i"
                     placeholder="e.g. Haircut, Styling..."
+                    (keydown.enter)="addServiceOnEnter($event)"
                   />
                   <button
                     type="button"
@@ -210,52 +1023,336 @@
               Add Service
             </button>
           </div>
+        </div>
+      }
 
-          <!-- Status -->
-          <div class="form-card">
-            <h2 class="card-title">
-              <i class="bi bi-toggle2-on"></i>
-              Status
-            </h2>
-            <div class="status-options">
-              <label class="status-option">
-                <input
-                  type="radio"
-                  formControlName="status"
-                  value="draft"
-                />
-                <span class="status-radio"></span>
-                <div>
-                  <strong>Draft</strong>
-                  <p>Not publicly visible</p>
-                </div>
-              </label>
-              <label class="status-option">
-                <input
-                  type="radio"
-                  formControlName="status"
-                  value="published"
-                />
-                <span class="status-radio"></span>
-                <div>
-                  <strong>Published</strong>
-                  <p>Visible via demo URL</p>
-                </div>
-              </label>
+      <!-- ============ STEP 2 · CHOOSE TEMPLATE ============ -->
+      @if (currentStep() === 2) {
+        <div class="step-panel">
+          <div class="form-card template-picker">
+            <div class="picker-head">
+              <div>
+                <h2 class="card-title">
+                  <i class="bi bi-layout-text-window-reverse"></i>
+                  Choose your website design
+                </h2>
+                <p class="picker-subtitle">
+                  This is the layout visitors see on <strong>/demo/your-business</strong>.
+                  Your name, photos and details are shown automatically — try
+                  <strong>Preview</strong> on any design to see it with your content.
+                </p>
+              </div>
+              <span class="category-chip">
+                <i class="bi bi-tag"></i>
+                {{ categoryTemplatesHeading }}
+              </span>
             </div>
+
+            @if (availableTemplates().length === 0) {
+              <div class="template-empty">
+                <div class="template-empty-icon">
+                  <i class="bi bi-stars"></i>
+                </div>
+                <h3>Templates coming soon</h3>
+                <p>
+                  Website designs for
+                  <strong
+                    >{{
+                      categoryNameOf(form.get('category')?.value || '') ||
+                        'this category'
+                    }}</strong
+                  >
+                  are on the way.
+                </p>
+                <p class="template-empty-sub">
+                  Pick another category in Business Information to see its
+                  available designs today.
+                </p>
+                <button type="button" class="btn-save" (click)="goToStep(1)">
+                  <i class="bi bi-arrow-left"></i>
+                  Back to Business Information
+                </button>
+              </div>
+            } @else {
+              <div
+                class="template-grid"
+                role="radiogroup"
+                aria-label="Website template"
+              >
+                @for (tpl of availableTemplates(); track tpl.id) {
+                  <div
+                    class="template-card"
+                    [class.selected]="selectedTemplateId === tpl.id"
+                    role="radio"
+                    tabindex="0"
+                    [attr.aria-checked]="selectedTemplateId === tpl.id"
+                    (click)="selectTemplate(tpl.id)"
+                    (keydown)="selectTemplateOnKey($event, tpl.id)"
+                  >
+                    <div class="tpl-preview">
+                      @if (thumbFor(tpl)) {
+                        <img
+                          class="tpl-preview-img"
+                          [src]="thumbFor(tpl) ?? ''"
+                          [alt]="tpl.name + ' website preview'"
+                        />
+                      } @else {
+                        <div class="tpl-thumb" [class.tpl-dark]="tpl.appearance === 'dark'">
+                          @if (imagePreviews().length > 0) {
+                            <img
+                              class="tpl-thumb-img"
+                              [src]="imagePreviews()[0]"
+                              alt=""
+                            />
+                          }
+                          <div class="tpl-thumb-top">
+                            @if (logoPreview()) {
+                              <img class="tpl-thumb-logo" [src]="logoPreview()" alt="" />
+                            } @else {
+                              <span class="tpl-thumb-dot" aria-hidden="true"></span>
+                            }
+                            <span class="tpl-thumb-nav" aria-hidden="true">
+                              <i></i><i></i><i></i><i></i><i></i>
+                            </span>
+                          </div>
+                          <div class="tpl-thumb-body">
+                            <span class="tpl-thumb-eyebrow">{{ categoryNameOf(tpl.categoryId) }}</span>
+                            <span class="tpl-thumb-name">
+                              {{ (form.get('businessName')?.value || 'Your Business Name') }}
+                            </span>
+                            <span class="tpl-thumb-tag">
+                              {{ (form.get('tagline')?.value || 'Your tagline will appear here') }}
+                            </span>
+                          </div>
+                          <div class="tpl-thumb-cta" aria-hidden="true">
+                            <span class="tpl-thumb-btn tpl-thumb-btn-solid"></span>
+                            <span class="tpl-thumb-btn"></span>
+                          </div>
+                        </div>
+                      }
+
+                      @if (thumbStateOf(tpl.id) === 'loading' && !tpl.thumbnail) {
+                        <div class="tpl-preview-shimmer" role="status">
+                          <span class="tpl-shimmer-spinner"></span>
+                          <span>Rendering preview…</span>
+                        </div>
+                      }
+
+                      @if (thumbStateOf(tpl.id) === 'error' && !tpl.thumbnail) {
+                        <div class="tpl-preview-error">
+                          <i class="bi bi-exclamation-triangle"></i>
+                          Preview unavailable
+                        </div>
+                      }
+
+                      @if (selectedTemplateId === tpl.id) {
+                        <span class="tpl-selected-badge">
+                          <i class="bi bi-check-lg"></i>
+                          Selected
+                        </span>
+                      }
+
+                      @if (!tpl.thumbnail) {
+                        <button
+                          type="button"
+                          class="tpl-refresh"
+                          title="Regenerate preview with latest details"
+                          aria-label="Regenerate preview for {{ tpl.name }}"
+                          [disabled]="thumbStateOf(tpl.id) === 'loading'"
+                          (click)="$event.stopPropagation(); regenerateThumbnail(tpl.id)"
+                        >
+                          <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                      }
+                    </div>
+
+                    <div class="tpl-card-body">
+                      <div class="tpl-card-info">
+                        <span class="tpl-card-category">
+                          <i class="bi bi-tag"></i>
+                          {{ categoryNameOf(tpl.categoryId) }}
+                        </span>
+                        <span class="tpl-card-name">{{ tpl.name }}</span>
+                        <span class="tpl-card-desc">{{ tpl.description }}</span>
+                      </div>
+                    </div>
+
+                    <div class="tpl-card-actions">
+                      <button
+                        type="button"
+                        class="tpl-btn tpl-btn-preview"
+                        (click)="$event.stopPropagation(); previewTemplate(tpl.id)"
+                      >
+                        <i class="bi bi-eye"></i>
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        class="tpl-btn tpl-btn-use"
+                        [class.tpl-btn-picked]="selectedTemplateId === tpl.id"
+                        (click)="$event.stopPropagation(); selectTemplate(tpl.id)"
+                      >
+                        @if (selectedTemplateId === tpl.id) {
+                          <i class="bi bi-check-lg"></i>
+                          Selected
+                        } @else {
+                          <i class="bi bi-magic"></i>
+                          Use Template
+                        }
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <p class="picker-footnote">
+                <i class="bi bi-info-circle"></i>
+                Previews include your latest unsaved changes — add photos in the
+                Media step, then come back to compare designs.
+              </p>
+            }
+          </div>
+
+          <!-- ============ CUSTOMIZE DESIGN ============ -->
+          <div class="form-card customize-card">
+            <div class="picker-head">
+              <div>
+                <h2 class="card-title">
+                  <i class="bi bi-palette"></i>
+                  Customize Design
+                </h2>
+                <p class="picker-subtitle">
+                  Choose a style preset — colors, typography and section
+                  treatments update instantly in the
+                  <strong>Preview</strong> modal and the gallery thumbnails.
+                  Fine-tune the shape of buttons, hero and gallery below.
+                </p>
+              </div>
+              <span class="category-chip">
+                <i class="bi bi-brush"></i>
+                {{ selectedTemplateMeta?.name || 'Design' }}
+              </span>
+            </div>
+
+            <div
+              class="theme-grid"
+              role="radiogroup"
+              aria-label="Theme preset"
+            >
+              @for (theme of availableThemes(); track theme.id) {
+                <div
+                  class="theme-card"
+                  [class.selected]="selectedThemeId === theme.id"
+                  role="radio"
+                  tabindex="0"
+                  [attr.aria-checked]="selectedThemeId === theme.id"
+                  (click)="selectTheme(theme.id)"
+                  (keydown)="selectThemeOnKey($event, theme.id)"
+                >
+                  <div
+                    class="theme-swatches"
+                    [class.theme-dark]="theme.appearance === 'dark'"
+                  >
+                    @for (swatch of theme.palette; track $index) {
+                      <span
+                        class="theme-swatch"
+                        [style.background]="swatch"
+                        [attr.title]="swatch"
+                      ></span>
+                    }
+                  </div>
+                  <div class="theme-card-info">
+                    <span class="theme-card-name">{{ theme.name }}</span>
+                    <span class="theme-card-desc">{{ theme.description }}</span>
+                  </div>
+                  @if (selectedThemeId === theme.id) {
+                    <span class="theme-check">
+                      <i class="bi bi-check-lg"></i>
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="style-options">
+              <div class="style-group">
+                <span class="style-label">Button style</span>
+                <div class="style-pills" role="radiogroup" aria-label="Button style">
+                  @for (opt of buttonStyleOptions; track opt.value) {
+                    <button
+                      type="button"
+                      class="style-pill"
+                      [class.active]="effectiveButtonStyle() === opt.value"
+                      (click)="setButtonStyle(opt.value)"
+                    >
+                      {{ opt.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="style-group">
+                <span class="style-label">Hero style</span>
+                <div class="style-pills" role="radiogroup" aria-label="Hero style">
+                  @for (opt of heroStyleOptions; track opt.value) {
+                    <button
+                      type="button"
+                      class="style-pill"
+                      [class.active]="effectiveHeroStyle() === opt.value"
+                      (click)="setHeroStyle(opt.value)"
+                    >
+                      {{ opt.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="style-group">
+                <span class="style-label">Gallery style</span>
+                <div class="style-pills" role="radiogroup" aria-label="Gallery style">
+                  @for (opt of galleryStyleOptions; track opt.value) {
+                    <button
+                      type="button"
+                      class="style-pill"
+                      [class.active]="effectiveGalleryStyle() === opt.value"
+                      (click)="setGalleryStyle(opt.value)"
+                    >
+                      {{ opt.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <p class="picker-footnote">
+              <i class="bi bi-info-circle"></i>
+              Style options inherit the chosen theme by default. Selecting the
+              same theme again resets custom style choices.
+            </p>
           </div>
         </div>
+      }
 
-        <!-- Right column -->
-        <div class="form-col">
-          <!-- Logo upload -->
+      <!-- ============ STEP 3 · LOGO & PHOTOS ============ -->
+      @if (currentStep() === 3) {
+        <div class="step-panel">
           <div class="form-card">
             <h2 class="card-title">
               <i class="bi bi-image"></i>
               Logo
             </h2>
+            <p class="card-hint">
+              Shown in the website header and on template previews.
+            </p>
 
-            <div class="upload-area" [class.drag-over]="dragOverLogo()" (click)="logoInput.click()">
+            <div
+              class="upload-area"
+              [class.drag-over]="dragOverLogo()"
+              (click)="logoInput.click()"
+              (dragover)="onLogoDragOver($event)"
+              (dragleave)="onLogoDragLeave($event)"
+              (drop)="onLogoDrop($event)"
+            >
               @if (logoPreview()) {
                 <img [src]="logoPreview()" alt="Logo preview" class="logo-preview" />
               } @else {
@@ -275,44 +1372,53 @@
             />
           </div>
 
-          <!-- Images upload -->
           <div class="form-card">
             <h2 class="card-title">
               <i class="bi bi-images"></i>
-              Business Images
+              Business Photos
             </h2>
+            <p class="card-hint">
+              The first photo becomes your website's cover/hero image. Photos
+              power the hero, about section and gallery.
+            </p>
 
-            <div class="upload-area-images" [class.drag-over]="dragOverImages()" (click)="imagesInput.click()">
+            <div
+              class="upload-area-images"
+              [class.drag-over]="dragOverImages()"
+              (dragover)="onImagesDragOver($event)"
+              (dragleave)="onImagesDragLeave($event)"
+              (drop)="onImagesDrop($event)"
+            >
               <div class="images-grid">
-              @for (preview of imagePreviews(); track $index; let i = $index) {
-                <div class="image-item" [class.cover]="i === 0">
-                  <img [src]="preview" alt="Image {{ i + 1 }}" />
-                  @if (i === 0) {
-                    <span class="cover-badge">Cover</span>
-                  } @else {
+                @for (preview of imagePreviews(); track $index; let i = $index) {
+                  <div class="image-item" [class.cover]="i === 0">
+                    <img [src]="preview" alt="Image {{ i + 1 }}" />
+                    @if (i === 0) {
+                      <span class="cover-badge">Cover</span>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn-cover"
+                        (click)="setAsCover(i)"
+                        title="Set as cover image"
+                      >
+                        <i class="bi bi-star"></i>
+                      </button>
+                    }
                     <button
                       type="button"
-                      class="btn-cover"
-                      (click)="setAsCover(i)"
-                      title="Set as cover image"
+                      class="btn-remove-image"
+                      (click)="removeImage(i)"
                     >
-                      <i class="bi bi-star"></i>
+                      <i class="bi bi-x-lg"></i>
                     </button>
-                  }
-                  <button
-                    type="button"
-                    class="btn-remove-image"
-                    (click)="removeImage(i)"
-                  >
-                    <i class="bi bi-x-lg"></i>
-                  </button>
-                </div>
-              }
+                  </div>
+                }
 
-              <div class="image-upload-btn" (click)="imagesInput.click()">
-                <i class="bi bi-plus-lg"></i>
-                <span>Add</span>
-              </div>
+                <div class="image-upload-btn" (click)="imagesInput.click()">
+                  <i class="bi bi-plus-lg"></i>
+                  <span>Add</span>
+                </div>
               </div>
             </div>
             <input
@@ -325,25 +1431,317 @@
             />
           </div>
         </div>
-      </div>
+      }
 
-      <!-- Submit -->
-      <div class="form-actions">
-        <a routerLink="/admin" class="btn-cancel">Cancel</a>
-        <button
-          type="submit"
-          class="btn-save"
-          [disabled]="saving()"
-        >
-          @if (saving()) {
-            <span class="spinner"></span>
-            Saving...
-          } @else {
-            <i class="bi bi-check-lg"></i>
-            {{ isEditMode() ? 'Update Business' : 'Create Business' }}
+      <!-- ============ STEP 4 · REVIEW / SAVE ============ -->
+      @if (currentStep() === 4) {
+        <div class="step-panel">
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-clipboard-check"></i>
+              Review your demo website
+            </h2>
+
+            <div class="review-grid">
+              <div class="review-block review-business">
+                <h3 class="review-heading">
+                  <i class="bi bi-building"></i>
+                  {{ (form.get('businessName')?.value || 'Unnamed business') }}
+                </h3>
+                <div class="review-chips">
+                  <span class="chip">{{
+                    categoryNameOf(form.get('category')?.value || '') || '—'
+                  }}</span>
+                  <span class="chip chip-status">{{ (form.get('status')?.value || 'draft') }}</span>
+                </div>
+
+                @if (form.get('tagline')?.value) {
+                  <p class="review-tagline">{{ form.get('tagline')?.value }}</p>
+                }
+
+                <ul class="review-contact">
+                  <li>
+                    <i class="bi bi-telephone"></i>
+                    <span>{{ (form.get('phone')?.value || '—') }}</span>
+                  </li>
+                  <li>
+                    <i class="bi bi-whatsapp"></i>
+                    <span>{{ (form.get('whatsapp')?.value || '—') }}</span>
+                  </li>
+                  <li>
+                    <i class="bi bi-geo-alt"></i>
+                    <span>{{ (form.get('address')?.value || '—') }}</span>
+                  </li>
+                </ul>
+
+                <div class="review-services">
+                  <span class="review-label">Services</span>
+                  @if (services.length === 0) {
+                    <p class="review-muted">No services added yet.</p>
+                  } @else {
+                    <div class="review-service-chips">
+                      @for (s of services.controls; track $index) {
+                        @if (s.value?.trim()) {
+                          <span class="service-chip">{{ s.value }}</span>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+
+                <div class="review-media">
+                  <span class="review-label">Media</span>
+                  <p class="review-muted">
+                    {{ imagePreviews().length }} photo(s)
+                    @if (logoPreview()) {
+                      · logo added
+                    } @else {
+                      · no logo
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div class="review-block review-template">
+                <span class="review-label">Website design</span>
+                @let selTpl = selectedTemplateMeta;
+                @if (selTpl) {
+                  <div class="review-tpl-thumb" [class.tpl-dark]="selTpl.appearance === 'dark'">
+                    @if (thumbFor(selTpl)) {
+                      <img
+                        class="review-tpl-img"
+                        [src]="thumbFor(selTpl) ?? ''"
+                        [alt]="selTpl.name + ' website preview'"
+                      />
+                    } @else if (imagePreviews().length > 0) {
+                      <img class="tpl-thumb-img" [src]="imagePreviews()[0]" alt="" />
+                    }
+                    <span class="tpl-thumb-name review-thumb-name">
+                      {{ (form.get('businessName')?.value || 'Your Business Name') }}
+                    </span>
+                  </div>
+                  <h3 class="review-tpl-name">{{ selTpl.name }}</h3>
+                  <p class="review-tpl-theme">
+                    <i class="bi bi-palette"></i>
+                    {{ selectedThemePreset?.name || 'Default' }}
+                  </p>
+                  <p class="review-tpl-desc">{{ selTpl.description }}</p>
+                  <div class="review-tpl-actions">
+                    <button
+                      type="button"
+                      class="tpl-btn tpl-btn-preview"
+                      (click)="previewTemplate(selectedTemplateId)"
+                    >
+                      <i class="bi bi-eye"></i>
+                      Preview full page
+                    </button>
+                    <button type="button" class="tpl-btn" (click)="goToStep(2)">
+                      <i class="bi bi-arrow-repeat"></i>
+                      Change design
+                    </button>
+                  </div>
+                } @else {
+                  <p class="review-muted">No design selected.</p>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-toggle2-on"></i>
+              Save as Draft or Publish
+            </h2>
+            <p class="card-hint">
+              Drafts are private. Publishing makes the demo URL live for
+              everyone to see.
+            </p>
+            <div class="status-options">
+              <label class="status-option">
+                <input
+                  type="radio"
+                  formControlName="status"
+                  value="draft"
+                />
+                <span class="status-radio"></span>
+                <div>
+                  <strong>Save as Draft</strong>
+                  <p>Keep editing — not publicly visible yet</p>
+                </div>
+              </label>
+              <label class="status-option">
+                <input
+                  type="radio"
+                  formControlName="status"
+                  value="published"
+                />
+                <span class="status-radio"></span>
+                <div>
+                  <strong>Publish</strong>
+                  <p>Go live via the demo URL</p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ============ STEP NAV ============ -->
+      <div class="step-nav">
+        <div class="step-nav-left">
+          @if (currentStep() > 1) {
+            <button
+              type="button"
+              class="btn-cancel step-back"
+              (click)="goToStep(currentStep() - 1)"
+            >
+              <i class="bi bi-arrow-left"></i>
+              Back
+            </button>
           }
-        </button>
+          <a routerLink="/admin" class="btn-cancel">Cancel</a>
+        </div>
+
+        <div class="step-nav-right">
+          @if (currentStep() < 4) {
+            <button
+              type="button"
+              class="btn-save step-next"
+              (click)="goToStep(currentStep() + 1)"
+            >
+              Continue
+              <i class="bi bi-arrow-right"></i>
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="btn-save btn-save-draft"
+              [disabled]="saving()"
+              (click)="onSubmit('draft')"
+            >
+              @if (saving()) {
+                <span class="spinner"></span>
+                Saving...
+              } @else {
+                <i class="bi bi-file-earmark-check"></i>
+                Save Draft
+              }
+            </button>
+            <button
+              type="button"
+              class="btn-save btn-save-publish"
+              [disabled]="saving()"
+              (click)="onSubmit('published')"
+            >
+              @if (saving()) {
+                <span class="spinner"></span>
+                Saving...
+              } @else {
+                <i class="bi bi-globe2"></i>
+                {{ isEditMode() ? 'Publish Changes' : 'Publish Website' }}
+              }
+            </button>
+          }
+        </div>
       </div>
     </form>
+    }
+
+    <!-- ============ LIVE TEMPLATE PREVIEW MODAL (both modes) ============ -->
+    @if (previewOpen()) {
+      <div class="preview-overlay" (click)="closePreview()">
+        <div
+          class="preview-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Live template preview"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="preview-header">
+            <div class="preview-title">
+              <span class="preview-eyebrow">
+                <i class="bi bi-eye"></i>
+                Live preview
+              </span>
+              <h3>{{ previewTemplateName() }}</h3>
+              <p>
+                {{ (form.get('businessName')?.value || 'Your Business Name') }}
+                · {{ previewTemplateId() }}
+                · {{ previewThemeName() }}
+              </p>
+            </div>
+            <div class="preview-header-actions">
+              <button
+                type="button"
+                class="preview-icon-btn"
+                title="Refresh preview with latest changes"
+                aria-label="Refresh preview"
+                (click)="refreshPreview()"
+              >
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+              <button
+                type="button"
+                class="preview-icon-btn"
+                title="Close preview"
+                aria-label="Close preview"
+                (click)="closePreview()"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="preview-body">
+            @if (previewError()) {
+              <div class="preview-error" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                {{ previewError() }}
+              </div>
+            }
+
+            <div class="preview-stage" #previewScale>
+              <div
+                class="preview-canvas"
+                #previewCanvas
+                [class.hidden]="previewLoading()"
+              >
+                <div #previewMount></div>
+              </div>
+            </div>
+
+            @if (previewLoading()) {
+              <div class="preview-spinner">
+                <div class="loading-spinner"></div>
+                <span>Rendering {{ previewTemplateName() }}…</span>
+              </div>
+            }
+          </div>
+
+          <div class="preview-footer">
+            <span class="preview-note">
+              <i class="bi bi-lightbulb"></i>
+              Shown with your current details and photos. Edit the form, then
+              refresh to update.
+            </span>
+            @if (previewTemplateId() !== selectedTemplateId) {
+              <button
+                type="button"
+                class="btn-save preview-use"
+                (click)="selectTemplate(previewTemplateId()); closePreview()"
+              >
+                <i class="bi bi-check-lg"></i>
+                Use this design
+              </button>
+            } @else {
+              <button type="button" class="btn-save preview-use" (click)="closePreview()">
+                <i class="bi bi-check-lg"></i>
+                Looks good
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
   }
 </div>

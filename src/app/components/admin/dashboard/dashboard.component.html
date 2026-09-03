@@ -100,7 +100,7 @@
                   {{ business.status }}
                 </span>
               </div>
-              <span class="card-category">{{ business.category }}</span>
+              <span class="card-category">{{ getCategoryLabel(business) }}</span>
             </div>
 
             <div class="card-body">
@@ -108,6 +108,10 @@
                 <span class="template-pill">
                   <i class="bi bi-collection"></i>
                   {{ getTemplateLabel(business.templateId) }}
+                </span>
+                <span class="template-pill theme-pill">
+                  <i class="bi bi-palette"></i>
+                  {{ getThemeLabel(business) }}
                 </span>
                 <span>
                   <i class="bi bi-calendar"></i>

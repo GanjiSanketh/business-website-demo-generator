@@ -6,7 +6,12 @@ import { Business } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotDialogComponent } from '../screenshot-dialog/screenshot-dialog.component';
-import { getTemplateDisplayName } from '../../demo/templates/template.registry';
+import {
+  getDefaultThemeForTemplate,
+  getTemplateDisplayName,
+} from '../../demo/templates/template.registry';
+import { getThemeDisplayName } from '../../demo/themes/theme.registry';
+import { getCategoryDisplayName } from '../../demo/categories/category.registry';
 
 type StatusFilter = 'all' | 'published' | 'draft';
 
@@ -92,6 +97,7 @@ export class DashboardComponent implements OnInit {
         (b) =>
           b.businessName.toLowerCase().includes(q) ||
           b.category.toLowerCase().includes(q) ||
+          this.getCategoryLabel(b).toLowerCase().includes(q) ||
           this.getTemplateLabel(b.templateId).toLowerCase().includes(q) ||
           b.status.toLowerCase().includes(q)
       );
@@ -214,5 +220,18 @@ export class DashboardComponent implements OnInit {
 
   getTemplateLabel(templateId: string): string {
     return getTemplateDisplayName(templateId);
+  }
+
+  /** Friendly theme name, falling back to the template's default theme. */
+  getThemeLabel(business: Business): string {
+    return getThemeDisplayName(
+      business.themeId,
+      getDefaultThemeForTemplate(business.templateId)
+    );
+  }
+
+  /** Friendly category name ("salon"/"Salon" → "Salon & Beauty"). */
+  getCategoryLabel(business: Business): string {
+    return getCategoryDisplayName(business.category);
   }
 }

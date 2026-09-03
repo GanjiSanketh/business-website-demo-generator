@@ -1,6 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -10,10 +10,22 @@ import { AuthService } from '../../../services/auth.service';
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.css',
 })
-export class AdminLayoutComponent {
+export class AdminLayoutComponent implements OnInit {
   sidebarOpen = signal(false);
+  /** Full-bleed layout for editor-style routes (website builder). */
+  wideLayout = signal(false);
 
   constructor(private authService: AuthService, private router: Router) {}
+
+  ngOnInit(): void {
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.wideLayout.set(
+          /^\/admin\/business\/[^/]+\/edit$/.test(event.urlAfterRedirects)
+        );
+      }
+    });
+  }
 
   toggleSidebar(): void {
     this.sidebarOpen.set(!this.sidebarOpen());

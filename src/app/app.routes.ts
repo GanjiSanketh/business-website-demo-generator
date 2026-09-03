@@ -4,6 +4,7 @@ import { LoginComponent } from './components/login/login.component';
 import { AdminLayoutComponent } from './components/admin/layout/admin-layout.component';
 import { DashboardComponent } from './components/admin/dashboard/dashboard.component';
 import { BusinessFormComponent } from './components/admin/business-form/business-form.component';
+import { businessFormGuard } from './components/admin/business-form/business-form.guard';
 import { DemoPageComponent } from './components/demo/demo-page/demo-page.component';
 
 export const routes: Routes = [
@@ -16,8 +17,16 @@ export const routes: Routes = [
     children: [
       { path: '', component: DashboardComponent },
       { path: 'businesses', redirectTo: '', pathMatch: 'full' },
-      { path: 'business/new', component: BusinessFormComponent },
-      { path: 'business/:id/edit', component: BusinessFormComponent },
+      {
+        path: 'business/new',
+        component: BusinessFormComponent,
+        canDeactivate: [businessFormGuard],
+      },
+      {
+        path: 'business/:id/edit',
+        component: BusinessFormComponent,
+        canDeactivate: [businessFormGuard],
+      },
     ],
   },
   { path: 'demo/:slug', component: DemoPageComponent },

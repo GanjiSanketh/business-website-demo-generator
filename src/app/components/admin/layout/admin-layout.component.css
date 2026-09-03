@@ -277,6 +277,13 @@
   min-height: calc(100vh - 56px);
 }
 
+/* ============ WIDE (EDITOR) LAYOUT ============ */
+.main-content.wide {
+  max-width: none;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 768px) {
   .top-nav {
