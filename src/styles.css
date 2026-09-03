@@ -115,3 +115,47 @@ a, button, input, select, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: #a3a3a3;
 }
+
+/* ============================================
+   ADMIN DESIGN SYSTEM — Dark / Gold Premium
+   Centralized tokens for the ADMIN application
+   only (login, admin shell, dashboard, business
+   forms, screenshot dialog). Additive — does not
+   change the --color-* tokens above, so the
+   public /demo/:slug shell and the Salon 01/02
+   templates (which carry their own local :host
+   tokens) are unaffected. Each admin component
+   opts in via its own :host { --color-*: ... }
+   remap onto these variables.
+   ============================================ */
+:root {
+  --admin-bg: #0a0a0b;
+  --admin-bg-elevated: #131315;
+  --admin-surface: #1a1a1d;
+  --admin-surface-2: #212124;
+  --admin-surface-metal: linear-gradient(155deg, #26262a 0%, #18181b 100%);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-border-strong: rgba(255, 255, 255, 0.16);
+  --admin-gold: #c9a463;
+  --admin-gold-bright: #e3c17a;
+  --admin-gold-muted: rgba(201, 164, 99, 0.35);
+  --admin-gold-glow: rgba(201, 164, 99, 0.16);
+  --admin-text: #f3ede2;
+  --admin-text-secondary: #b6b0a3;
+  --admin-text-muted: #7d7870;
+  --admin-danger: #d1685c;
+  --admin-danger-bright: #e07a6d;
+  --admin-danger-bg: rgba(209, 104, 92, 0.14);
+  --admin-success: #93b17a;
+  --admin-success-bg: rgba(147, 177, 122, 0.14);
+  --admin-warning: #d1a24c;
+  --admin-warning-bg: rgba(209, 162, 76, 0.14);
+  --admin-radius-sm: 8px;
+  --admin-radius-md: 12px;
+  --admin-radius-lg: 18px;
+  --admin-radius-full: 999px;
+  --admin-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --admin-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --admin-shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.6);
+  --admin-transition: 180ms ease;
+}

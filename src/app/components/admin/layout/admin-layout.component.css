@@ -1,6 +1,40 @@
+:host {
+  /* Remap the shared light tokens onto the admin dark/gold system.
+     Scoped to this component's subtree only — the public demo shell
+     and Salon 01/02 (which define their own local tokens) never see this. */
+  --color-bg: var(--admin-surface);
+  --color-bg-subtle: var(--admin-bg);
+  --color-bg-muted: var(--admin-surface-2);
+  --color-bg-alt: var(--admin-surface-2);
+  --color-border: var(--admin-border);
+  --color-border-subtle: var(--admin-border);
+  --color-text: var(--admin-text);
+  --color-text-secondary: var(--admin-text-secondary);
+  --color-text-tertiary: var(--admin-text-muted);
+  --color-accent: var(--admin-gold);
+  --color-accent-hover: var(--admin-gold-bright);
+  --color-accent-light: var(--admin-gold-glow);
+  --color-success: var(--admin-success);
+  --color-success-bg: var(--admin-success-bg);
+  --color-warning: var(--admin-warning);
+  --color-warning-bg: var(--admin-warning-bg);
+  --color-error: var(--admin-danger);
+  --color-error-hover: var(--admin-danger-bright);
+  --color-error-bg: var(--admin-danger-bg);
+  --radius-sm: var(--admin-radius-sm);
+  --radius-md: var(--admin-radius-md);
+  --radius-lg: var(--admin-radius-lg);
+  --radius-full: var(--admin-radius-full);
+  --shadow-sm: var(--admin-shadow-sm);
+  --shadow-md: var(--admin-shadow-md);
+  --shadow-lg: var(--admin-shadow-lg);
+
+  display: block;
+  background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201, 164, 99, 0.07), transparent 60%), var(--admin-bg);
+}
+
 .admin-layout {
   min-height: 100vh;
-  background: var(--color-bg-subtle);
 }
 
 /* ============ TOP NAVIGATION ============ */
@@ -8,8 +42,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--color-bg);
+  background: var(--admin-bg-elevated);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-container {
@@ -37,10 +72,11 @@
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  background: var(--color-accent);
-  color: #fff;
+  width: 30px;
+  height: 30px;
+  background: var(--admin-surface-metal);
+  color: var(--admin-gold-bright);
+  border: 1px solid var(--admin-gold-muted);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -48,12 +84,14 @@
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  box-shadow: var(--shadow-sm);
 }
 
 .brand-text {
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 .nav-links {
@@ -63,11 +101,14 @@
 }
 
 .nav-links a {
+  position: relative;
   padding: 0.4rem 0.75rem;
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background var(--transition-fast);
 }
@@ -78,8 +119,19 @@
 }
 
 .nav-links a.active {
-  color: var(--color-text);
-  background: var(--color-bg-muted);
+  color: var(--admin-gold-bright);
+  background: var(--admin-gold-glow);
+}
+
+.nav-links a.active::after {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: -1px;
+  height: 2px;
+  background: var(--admin-gold);
+  border-radius: 2px;
 }
 
 .nav-right {
@@ -91,17 +143,18 @@
   padding: 0.4rem 0.75rem;
   color: var(--color-text-tertiary);
   background: none;
-  border: none;
-  font-size: 0.85rem;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .nav-logout:hover {
   color: var(--color-error);
   background: var(--color-error-bg);
+  border-color: color-mix(in srgb, var(--color-error) 35%, transparent);
 }
 
 /* ============ MOBILE HEADER ============ */
@@ -111,7 +164,7 @@
   top: 0;
   z-index: 100;
   height: 52px;
-  background: var(--color-bg);
+  background: var(--admin-bg-elevated);
   border-bottom: 1px solid var(--color-border);
   align-items: center;
   padding: 0 var(--space-md);
@@ -147,7 +200,7 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 199;
 }
 
@@ -157,8 +210,9 @@
   top: 52px;
   left: 0;
   right: 0;
-  background: var(--color-bg);
+  background: var(--admin-bg-elevated);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
   padding: var(--space-sm);
   z-index: 200;
   flex-direction: column;
@@ -186,10 +240,14 @@
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
-.mobile-nav a:hover,
-.mobile-nav a.active {
+.mobile-nav a:hover {
   color: var(--color-text);
   background: var(--color-bg-muted);
+}
+
+.mobile-nav a.active {
+  color: var(--admin-gold-bright);
+  background: var(--admin-gold-glow);
 }
 
 .mobile-logout {

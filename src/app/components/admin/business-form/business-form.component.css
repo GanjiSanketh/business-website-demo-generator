@@ -1,3 +1,29 @@
+:host {
+  --color-bg: var(--admin-surface);
+  --color-bg-subtle: var(--admin-bg);
+  --color-bg-muted: var(--admin-surface-2);
+  --color-border: var(--admin-border);
+  --color-text: var(--admin-text);
+  --color-text-secondary: var(--admin-text-secondary);
+  --color-text-tertiary: var(--admin-text-muted);
+  --color-accent: var(--admin-gold);
+  --color-accent-hover: var(--admin-gold-bright);
+  --color-success: var(--admin-success);
+  --color-success-bg: var(--admin-success-bg);
+  --color-warning: var(--admin-warning);
+  --color-warning-bg: var(--admin-warning-bg);
+  --color-error: var(--admin-danger);
+  --color-error-bg: var(--admin-danger-bg);
+  --radius-sm: var(--admin-radius-sm);
+  --radius-md: var(--admin-radius-md);
+  --radius-lg: var(--admin-radius-lg);
+  --radius-full: var(--admin-radius-full);
+  --shadow-sm: var(--admin-shadow-sm);
+  --shadow-md: var(--admin-shadow-md);
+  --shadow-lg: var(--admin-shadow-lg);
+  display: block;
+}
+
 .form-page {
   max-width: 900px;
 }
@@ -44,13 +70,13 @@
 .alert-success {
   background: var(--color-success-bg);
   color: var(--color-success);
-  border: 1px solid #bbf7d0;
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
 }
 
 .alert-danger {
   background: var(--color-error-bg);
-  color: var(--color-error);
-  border: 1px solid #fecaca;
+  color: var(--admin-danger-bright);
+  border: 1px solid color-mix(in srgb, var(--color-error) 35%, transparent);
 }
 
 /* ============ DEMO URL BAR ============ */
@@ -59,8 +85,8 @@
   align-items: center;
   gap: var(--space-sm);
   padding: 0.65rem 1rem;
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-gold-muted);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-lg);
   font-size: 0.85rem;
@@ -85,23 +111,24 @@
 }
 
 .btn-copy {
-  background: var(--color-bg);
+  background: var(--admin-surface);
   color: var(--color-text-secondary);
 }
 
 .btn-copy:hover {
-  border-color: #ccc;
+  border-color: var(--admin-gold-muted);
   color: var(--color-text);
 }
 
 .btn-open {
-  background: var(--color-accent);
-  color: #fff;
-  border-color: var(--color-accent);
+  background: var(--admin-surface-metal);
+  color: var(--admin-gold-bright);
+  border-color: var(--admin-gold-muted);
 }
 
 .btn-open:hover {
-  background: var(--color-accent-hover);
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
 }
 
 /* ============ LOADING ============ */
@@ -116,8 +143,8 @@
 .loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-text);
+  border: 2px solid var(--admin-gold-muted);
+  border-top-color: var(--admin-gold-bright);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   margin-bottom: var(--space-md);
@@ -150,25 +177,27 @@
 
 /* ============ FORM SECTIONS ============ */
 .form-card {
-  background: var(--color-bg);
+  background: var(--admin-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-title {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-text);
   margin: 0 0 var(--space-xl);
-  letter-spacing: -0.01em;
 }
 
 .card-title i {
-  color: var(--color-text-tertiary);
+  color: var(--admin-gold);
   font-size: 1rem;
 }
 
@@ -183,33 +212,40 @@
 
 .form-group label {
   display: block;
-  font-weight: 500;
-  color: var(--color-text);
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.45rem;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.8rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-family: var(--font-sans);
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  background: var(--color-bg);
+  background: var(--admin-surface-2);
   box-sizing: border-box;
   color: var(--color-text);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-tertiary);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(15, 15, 15, 0.06);
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
 }
 
 .form-group input.invalid,
@@ -236,6 +272,103 @@
   display: block;
 }
 
+/* ============ TEMPLATE SELECTOR ============ */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.template-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: var(--space-lg) var(--space-md) var(--space-md);
+  background: var(--admin-surface-metal);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.template-card:hover {
+  border-color: var(--admin-gold-muted);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.template-card.selected {
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 1px var(--admin-gold), var(--shadow-md);
+}
+
+.template-card:has(input:focus-visible) {
+  outline: 2px solid var(--admin-gold);
+  outline-offset: 2px;
+}
+
+.template-card-index {
+  align-self: flex-start;
+  padding: 0.15rem 0.55rem;
+  margin-bottom: 0.35rem;
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-gold-muted);
+  border-radius: var(--radius-full);
+  color: var(--admin-gold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.template-card.selected .template-card-index {
+  background: var(--admin-gold);
+  border-color: var(--admin-gold);
+  color: var(--admin-bg);
+}
+
+.template-card-check {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  color: var(--admin-gold);
+  font-size: 1.1rem;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.template-card.selected .template-card-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.template-card-category {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-tertiary);
+}
+
+.template-card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.template-card-desc {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.template-empty-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
 /* ============ SERVICES ============ */
 .services-list {
   display: flex;
@@ -257,11 +390,14 @@
   font-size: 0.85rem;
   font-family: var(--font-sans);
   outline: none;
-  background: var(--color-bg);
+  background: var(--admin-surface-2);
+  color: var(--color-text);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .service-item input:focus {
-  border-color: var(--color-accent);
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
 }
 
 .btn-remove {
@@ -303,8 +439,8 @@
 }
 
 .btn-add-service:hover {
-  border-color: var(--color-text-tertiary);
-  color: var(--color-text);
+  border-color: var(--admin-gold-muted);
+  color: var(--admin-gold-bright);
 }
 
 /* ============ STATUS ============ */
@@ -317,16 +453,32 @@
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  padding: 0.65rem 0.85rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--admin-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   flex: 1;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.status-option:hover {
+  border-color: var(--admin-gold-muted);
 }
 
 .status-option:has(input:checked) {
-  border-color: var(--color-accent);
+  border-color: var(--admin-gold);
+  background: var(--admin-gold-glow);
+  box-shadow: 0 0 0 1px var(--admin-gold-muted);
+}
+
+.status-option:has(input:checked) strong {
+  color: var(--admin-gold-bright);
+}
+
+.status-option:has(input:focus-visible) {
+  outline: 2px solid var(--admin-gold);
+  outline-offset: 2px;
 }
 
 .status-option input {
@@ -348,11 +500,12 @@
 
 /* ============ UPLOAD ============ */
 .upload-area {
+  background: var(--admin-surface-2);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   cursor: pointer;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
   text-align: center;
   min-height: 120px;
   display: flex;
@@ -360,8 +513,10 @@
   justify-content: center;
 }
 
-.upload-area:hover {
-  border-color: var(--color-text-tertiary);
+.upload-area:hover,
+.upload-area.drag-over {
+  border-color: var(--admin-gold);
+  background: var(--admin-gold-glow);
 }
 
 .upload-placeholder {
@@ -372,7 +527,7 @@
   font-size: 1.5rem;
   display: block;
   margin-bottom: var(--space-sm);
-  color: var(--color-border);
+  color: var(--admin-gold-muted);
 }
 
 .upload-placeholder p {
@@ -409,7 +564,7 @@
 }
 
 .image-item.cover {
-  border-color: var(--color-accent);
+  border-color: var(--admin-gold);
   border-width: 2px;
 }
 
@@ -417,10 +572,10 @@
   position: absolute;
   bottom: 4px;
   left: 4px;
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--admin-gold);
+  color: var(--admin-bg);
   font-size: 0.6rem;
-  font-weight: 600;
+  font-weight: 700;
   padding: 0.1rem 0.35rem;
   border-radius: var(--radius-sm);
   text-transform: uppercase;
@@ -519,7 +674,7 @@
 
 .btn-cancel {
   padding: 0.55rem 1rem;
-  background: var(--color-bg);
+  background: var(--admin-surface-2);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -532,7 +687,7 @@
 }
 
 .btn-cancel:hover {
-  border-color: #ccc;
+  border-color: var(--admin-border-strong);
   color: var(--color-text);
 }
 
@@ -540,20 +695,23 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.55rem 1.25rem;
-  background: var(--color-accent);
-  color: #fff;
-  border: none;
+  padding: 0.6rem 1.4rem;
+  background: var(--admin-surface-metal);
+  color: var(--admin-gold-bright);
+  border: 1px solid var(--admin-gold-muted);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   font-family: var(--font-sans);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-save:hover:not(:disabled) {
-  background: var(--color-accent-hover);
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
 }
 
 .btn-save:disabled {
@@ -564,8 +722,8 @@
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2px solid var(--admin-gold-muted);
+  border-top-color: var(--admin-gold-bright);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }

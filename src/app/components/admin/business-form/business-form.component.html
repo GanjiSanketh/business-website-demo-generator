@@ -65,38 +65,21 @@
               }
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label for="category">Category *</label>
-                <select
-                  id="category"
-                  formControlName="category"
-                  [class.invalid]="isFieldInvalid('category')"
-                >
-                  <option value="">Select category</option>
-                  @for (cat of categories; track cat) {
-                    <option [value]="cat">{{ cat }}</option>
-                  }
-                </select>
-                @if (isFieldInvalid('category')) {
-                  <span class="error-text">Category is required.</span>
+            <div class="form-group">
+              <label for="category">Category *</label>
+              <select
+                id="category"
+                formControlName="category"
+                [class.invalid]="isFieldInvalid('category')"
+              >
+                <option value="">Select category</option>
+                @for (cat of categories; track cat) {
+                  <option [value]="cat">{{ cat }}</option>
                 }
-              </div>
-
-              <div class="form-group">
-                <label for="templateId">Template *</label>
-                <select
-                  id="templateId"
-                  formControlName="templateId"
-                  [class.invalid]="isFieldInvalid('templateId')"
-                >
-                  @for (tpl of templates; track tpl.id) {
-                    <option [value]="tpl.id">
-                      {{ tpl.label }} {{ !tpl.available ? '(Coming Soon)' : '' }}
-                    </option>
-                  }
-                </select>
-              </div>
+              </select>
+              @if (isFieldInvalid('category')) {
+                <span class="error-text">Category is required.</span>
+              }
             </div>
 
             <div class="form-group">
@@ -121,7 +104,7 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label for="phone">Phone *</label>
+                <label for="phone">Phone</label>
                 <input
                   id="phone"
                   type="tel"
@@ -129,13 +112,10 @@
                   [class.invalid]="isFieldInvalid('phone')"
                   placeholder="+1 234 567 8900"
                 />
-                @if (isFieldInvalid('phone')) {
-                  <span class="error-text">Phone is required.</span>
-                }
               </div>
 
               <div class="form-group">
-                <label for="whatsapp">WhatsApp *</label>
+                <label for="whatsapp">WhatsApp</label>
                 <input
                   id="whatsapp"
                   type="tel"
@@ -143,14 +123,11 @@
                   [class.invalid]="isFieldInvalid('whatsapp')"
                   placeholder="+1 234 567 8900"
                 />
-                @if (isFieldInvalid('whatsapp')) {
-                  <span class="error-text">WhatsApp is required.</span>
-                }
               </div>
             </div>
 
             <div class="form-group">
-              <label for="address">Address *</label>
+              <label for="address">Address</label>
               <textarea
                 id="address"
                 formControlName="address"
@@ -158,10 +135,44 @@
                 [class.invalid]="isFieldInvalid('address')"
                 placeholder="Full business address"
               ></textarea>
-              @if (isFieldInvalid('address')) {
-                <span class="error-text">Address is required.</span>
-              }
             </div>
+          </div>
+
+          <!-- Website Template -->
+          <div class="form-card">
+            <h2 class="card-title">
+              <i class="bi bi-layout-text-window-reverse"></i>
+              Website Template
+            </h2>
+
+            @if (availableTemplates().length > 0) {
+              <div class="template-grid" role="radiogroup" aria-label="Website template">
+                @for (tpl of availableTemplates(); track tpl.id; let i = $index) {
+                  <label
+                    class="template-card"
+                    [class.selected]="form.get('templateId')?.value === tpl.id"
+                  >
+                    <input
+                      type="radio"
+                      formControlName="templateId"
+                      [value]="tpl.id"
+                      class="visually-hidden"
+                    />
+                    <span class="template-card-index">{{ (i + 1) | number: '2.0-0' }}</span>
+                    <span class="template-card-check" aria-hidden="true">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </span>
+                    <span class="template-card-category">{{ tpl.category }}</span>
+                    <span class="template-card-name">{{ tpl.name }}</span>
+                    @if (tpl.description) {
+                      <span class="template-card-desc">{{ tpl.description }}</span>
+                    }
+                  </label>
+                }
+              </div>
+            } @else {
+              <p class="template-empty-hint">Select a category above to see available templates.</p>
+            }
           </div>
 
           <!-- Services -->

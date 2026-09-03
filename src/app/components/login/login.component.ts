@@ -35,29 +35,7 @@ export class LoginComponent {
 
       this.router.navigate(['/admin']);
     } catch (err: unknown) {
-      // Comprehensive diagnostic logging — captures every possible error shape
-      console.group('[Auth] Google Sign-In FAILED');
-      console.log('typeof err:', typeof err);
-      console.log('err:', err);
-
-      if (err && typeof err === 'object') {
-        const e = err as Record<string, unknown>;
-        console.log('err.name:', e['name']);
-        console.log('err.message:', e['message']);
-        console.log('err.code:', e['code']);
-        console.log('err.stack:', e['stack']);
-        console.log('err.customData:', e['customData']);
-        console.log('err.serverResponse:', e['serverResponse']);
-        // Log all own enumerable properties
-        console.log('All properties:', Object.keys(e));
-        // Some Firebase errors put info in non-enumerable properties
-        for (const key of Object.getOwnPropertyNames(e)) {
-          try {
-            console.log(`  err.${key}:`, (e as any)[key]);
-          } catch { /* ignore */ }
-        }
-      }
-      console.groupEnd();
+      console.error('[Auth] Google Sign-In failed:', err);
 
       // Extract the best available error info
       const errObj = err as any;

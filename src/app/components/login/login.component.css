@@ -1,47 +1,77 @@
+:host {
+  --color-bg: var(--admin-surface);
+  --color-bg-subtle: var(--admin-bg);
+  --color-bg-muted: var(--admin-surface-2);
+  --color-border: var(--admin-border);
+  --color-text: var(--admin-text);
+  --color-text-secondary: var(--admin-text-secondary);
+  --color-text-tertiary: var(--admin-text-muted);
+  --color-accent: var(--admin-gold);
+  --color-accent-hover: var(--admin-gold-bright);
+  --color-success-bg: var(--admin-success-bg);
+  --color-error: var(--admin-danger);
+  --color-error-bg: var(--admin-danger-bg);
+  --radius-sm: var(--admin-radius-sm);
+  --radius-md: var(--admin-radius-md);
+  --radius-lg: var(--admin-radius-lg);
+  --shadow-sm: var(--admin-shadow-sm);
+  --shadow-lg: var(--admin-shadow-lg);
+  display: block;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg);
+  background:
+    radial-gradient(ellipse 700px 420px at 50% 8%, rgba(201, 164, 99, 0.1), transparent 65%),
+    var(--admin-bg);
   padding: var(--space-xl);
 }
 
 .login-content {
   width: 100%;
-  max-width: 360px;
+  max-width: 380px;
   text-align: center;
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--admin-surface-metal);
+  border: 1px solid var(--admin-gold-muted);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-brand {
-  margin-bottom: var(--space-2xl);
+  margin-bottom: var(--space-xl);
 }
 
 .brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: var(--color-accent);
-  color: #fff;
+  width: 48px;
+  height: 48px;
+  background: var(--admin-surface-2);
+  color: var(--admin-gold-bright);
+  border: 1px solid var(--admin-gold-muted);
   border-radius: var(--radius-md);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  box-shadow: 0 0 24px var(--admin-gold-glow);
 }
 
 .login-content h1 {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--color-text);
   margin-bottom: var(--space-sm);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .login-subtitle {
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   margin-bottom: var(--space-2xl);
 }
@@ -58,23 +88,25 @@
 
 .alert-danger {
   background: var(--color-error-bg);
-  color: var(--color-error);
+  color: var(--admin-danger-bright);
+  border: 1px solid color-mix(in srgb, var(--color-error) 35%, transparent);
 }
 
 .alert-warning {
-  background: var(--color-warning-bg);
-  color: #92400e;
+  background: var(--admin-warning-bg);
+  color: var(--admin-warning);
+  border: 1px solid color-mix(in srgb, var(--admin-warning) 35%, transparent);
 }
 
 /* Google button */
 .btn-google {
   width: 100%;
-  padding: 0.7rem 1.25rem;
-  background: var(--color-bg);
+  padding: 0.75rem 1.25rem;
+  background: var(--admin-surface-2);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
   font-family: var(--font-sans);
   cursor: pointer;
@@ -82,16 +114,21 @@
   align-items: center;
   justify-content: center;
   gap: 0.65rem;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .btn-google:hover:not(:disabled) {
-  border-color: #ccc;
-  box-shadow: var(--shadow-sm);
+  border-color: var(--admin-gold-muted);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
 }
 
 .btn-google:active:not(:disabled) {
   background: var(--color-bg-muted);
+}
+
+.btn-google:focus-visible {
+  outline: 2px solid var(--admin-gold);
+  outline-offset: 2px;
 }
 
 .btn-google:disabled {

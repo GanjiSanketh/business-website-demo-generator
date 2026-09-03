@@ -13,18 +13,21 @@
   <!-- Stats Cards -->
   <div class="stats-grid">
     <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-building"></i></div>
       <div class="stat-info">
         <span class="stat-value">{{ totalBusinesses() }}</span>
         <span class="stat-label">Total Businesses</span>
       </div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-globe2"></i></div>
       <div class="stat-info">
         <span class="stat-value">{{ publishedCount() }}</span>
         <span class="stat-label">Published</span>
       </div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-file-earmark-text"></i></div>
       <div class="stat-info">
         <span class="stat-value">{{ draftCount() }}</span>
         <span class="stat-label">Drafts</span>
@@ -32,18 +35,30 @@
     </div>
   </div>
 
-  <!-- Search & List -->
+  <!-- Search, Filter & List -->
   <div class="list-section">
     <div class="list-header">
       <h2>Businesses</h2>
-      <div class="search-box">
-        <i class="bi bi-search"></i>
-        <input
-          type="text"
-          placeholder="Search businesses..."
-          [value]="searchQuery()"
-          (input)="searchQuery.set($any($event.target).value)"
-        />
+      <div class="list-controls">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input
+            type="text"
+            placeholder="Search name, category, template..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+        </div>
+        <div class="filter-select">
+          <select
+            [value]="statusFilter()"
+            (change)="onStatusFilterChange($event)"
+          >
+            <option value="all">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -57,13 +72,13 @@
         <i class="bi bi-building"></i>
         <h3>No businesses found</h3>
         <p>
-          @if (searchQuery()) {
-            No businesses match your search. Try a different query.
+          @if (searchQuery() || statusFilter() !== 'all') {
+            No businesses match your filters. Try adjusting your search or filter.
           } @else {
             Create your first business to get started.
           }
         </p>
-        @if (!searchQuery()) {
+        @if (!searchQuery() && statusFilter() === 'all') {
           <a routerLink="/admin/business/new" class="btn-primary">
             <i class="bi bi-plus-lg"></i>
             Create Business
@@ -90,14 +105,20 @@
 
             <div class="card-body">
               <div class="card-meta">
-                <span>
+                <span class="template-pill">
                   <i class="bi bi-collection"></i>
                   {{ getTemplateLabel(business.templateId) }}
                 </span>
                 <span>
                   <i class="bi bi-calendar"></i>
-                  {{ formatDate(business.createdAt) }}
+                  Created {{ formatDate(business.createdAt) }}
                 </span>
+                @if (business.updatedAt) {
+                  <span>
+                    <i class="bi bi-clock-history"></i>
+                    Updated {{ formatDateTime(business.updatedAt) }}
+                  </span>
+                }
               </div>
             </div>
 
@@ -105,6 +126,7 @@
               <button
                 class="btn-action btn-preview"
                 (click)="openDemo(business)"
+                [attr.aria-label]="'Preview ' + business.businessName"
               >
                 <i class="bi bi-box-arrow-up-right"></i>
                 <span class="btn-label">Preview</span>
@@ -113,25 +135,26 @@
               <a
                 class="btn-action btn-edit"
                 [routerLink]="['/admin/business', business.id, 'edit']"
+                [attr.aria-label]="'Edit ' + business.businessName"
               >
                 <i class="bi bi-pencil"></i>
                 <span class="btn-label">Edit</span>
               </a>
 
-              @if (business.status === 'published') {
-                <button
-                  class="btn-action btn-copy"
-                  (click)="copyDemoUrl(business)"
-                >
-                  <i class="bi bi-link-45deg"></i>
-                  <span class="btn-label">Copy Link</span>
-                </button>
-              }
+              <button
+                class="btn-action btn-copy"
+                (click)="copyDemoUrl(business)"
+                [attr.aria-label]="'Copy demo URL for ' + business.businessName"
+              >
+                <i class="bi bi-link-45deg"></i>
+                <span class="btn-label">Copy URL</span>
+              </button>
 
               <button
                 class="btn-action btn-duplicate"
                 [disabled]="duplicatingId() === business.id"
                 (click)="duplicateBusiness(business)"
+                [attr.aria-label]="'Duplicate ' + business.businessName"
               >
                 @if (duplicatingId() === business.id) {
                   <span class="mini-spinner"></span>
@@ -144,6 +167,7 @@
               <button
                 class="btn-action btn-toggle"
                 (click)="toggleStatus(business)"
+                [attr.aria-label]="business.status === 'published' ? 'Unpublish ' + business.businessName : 'Publish ' + business.businessName"
               >
                 <i
                   class="bi"
@@ -160,6 +184,7 @@
                 <button
                   class="btn-action btn-screenshot"
                   (click)="openScreenshotDialog(business)"
+                  [attr.aria-label]="'Generate screenshot for ' + business.businessName"
                 >
                   <i class="bi bi-camera"></i>
                   <span class="btn-label">Screenshot</span>
@@ -173,7 +198,7 @@
 
               @if (deleteConfirmId() === business.id) {
                 <div class="delete-confirm">
-                  <span>Delete?</span>
+                  <span class="delete-confirm-text">Delete <strong>{{ deleteConfirmName() }}</strong>?</span>
                   <button class="btn-confirm-yes" (click)="deleteBusiness(business)">
                     Delete
                   </button>
@@ -185,6 +210,7 @@
                 <button
                   class="btn-action btn-delete"
                   (click)="confirmDelete(business)"
+                  [attr.aria-label]="'Delete ' + business.businessName"
                 >
                   <i class="bi bi-trash"></i>
                   <span class="btn-label">Delete</span>

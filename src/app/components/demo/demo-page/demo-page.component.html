@@ -15,23 +15,18 @@
       </a>
     </div>
   </div>
-} @else if (business()) {
-  @switch (business()!.templateId) {
-    @case ('salon-01') {
-      <app-salon01 [business]="business()!" />
-    }
-    @default {
-      <div class="demo-not-found">
-        <div class="not-found-content">
-          <i class="bi bi-tools"></i>
-          <h1>Template Coming Soon</h1>
-          <p>This template is currently under development.</p>
-          <a href="/" class="btn-home">
-            <i class="bi bi-house"></i>
-            Go Home
-          </a>
-        </div>
-      </div>
-    }
-  }
+} @else if (templateUnavailable()) {
+  <div class="demo-not-found">
+    <div class="not-found-content">
+      <i class="bi bi-tools"></i>
+      <h1>Template Unavailable</h1>
+      <p>This website template is currently unavailable.</p>
+      <a href="/" class="btn-home">
+        <i class="bi bi-house"></i>
+        Go Home
+      </a>
+    </div>
+  </div>
+} @else {
+  <ng-container #templateContainer></ng-container>
 }

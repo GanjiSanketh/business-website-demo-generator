@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { BusinessService } from '../../../services/business.service';
@@ -6,6 +6,9 @@ import { Business } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotDialogComponent } from '../screenshot-dialog/screenshot-dialog.component';
+import { getTemplateDisplayName } from '../../demo/templates/template.registry';
+
+type StatusFilter = 'all' | 'published' | 'draft';
 
 @Component({
   selector: 'app-dashboard',
@@ -21,6 +24,7 @@ export class DashboardComponent implements OnInit {
   publishedCount = signal(0);
   draftCount = signal(0);
   searchQuery = signal('');
+  statusFilter = signal<StatusFilter>('all');
   deleteConfirmId = signal<string | null>(null);
   deleteConfirmName = signal<string>('');
   duplicatingId = signal<string | null>(null);
@@ -73,13 +77,27 @@ export class DashboardComponent implements OnInit {
   }
 
   get filteredBusinesses(): Business[] {
-    const q = this.searchQuery().toLowerCase();
-    if (!q) return this.businesses();
-    return this.businesses().filter(
-      (b) =>
-        b.businessName.toLowerCase().includes(q) ||
-        b.category.toLowerCase().includes(q)
-    );
+    let result = this.businesses();
+
+    // Status filter
+    const filter = this.statusFilter();
+    if (filter !== 'all') {
+      result = result.filter((b) => b.status === filter);
+    }
+
+    // Search query
+    const q = this.searchQuery().toLowerCase().trim();
+    if (q) {
+      result = result.filter(
+        (b) =>
+          b.businessName.toLowerCase().includes(q) ||
+          b.category.toLowerCase().includes(q) ||
+          this.getTemplateLabel(b.templateId).toLowerCase().includes(q) ||
+          b.status.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
   }
 
   getDemoUrl(business: Business): string {
@@ -91,8 +109,11 @@ export class DashboardComponent implements OnInit {
   }
 
   copyDemoUrl(business: Business): void {
-    navigator.clipboard.writeText(this.getDemoUrl(business));
-    this.showToast('Demo link copied.');
+    const url = this.getDemoUrl(business);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => this.showToast('Demo URL copied.'))
+      .catch(() => this.showToast('Failed to copy URL.'));
   }
 
   confirmDelete(business: Business): void {
@@ -172,13 +193,26 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  formatDateTime(date: any): string {
+    if (!date) return '—';
+    const d = date instanceof Date ? date : date.toDate?.() || new Date(date);
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  onStatusFilterChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    if (value === 'all' || value === 'published' || value === 'draft') {
+      this.statusFilter.set(value);
+    }
+  }
+
   getTemplateLabel(templateId: string): string {
-    const labels: Record<string, string> = {
-      'salon-01': 'Salon 01',
-      'restaurant-01': 'Restaurant 01',
-      'gym-01': 'Gym 01',
-      'local-service-01': 'Local Service 01',
-    };
-    return labels[templateId] || templateId;
+    return getTemplateDisplayName(templateId);
   }
 }

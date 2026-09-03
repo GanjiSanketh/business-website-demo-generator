@@ -38,7 +38,6 @@ export class StorageService {
       }
       this.storage = getStorage(apps[0]);
       this.storageInitialized = true;
-      console.log('[StorageService] Firebase Storage initialized successfully.');
       return this.storage;
     } catch (err) {
       console.error('[StorageService] Failed to initialize Storage:', err);
@@ -69,8 +68,6 @@ export class StorageService {
       const storageRef = ref(storage, path);
       const task: UploadTask = uploadBytesResumable(storageRef, file);
 
-      console.log('[StorageService] Logo upload started for business:', businessId);
-
       return new Promise<string>((resolve, reject) => {
         // Set a timeout so the upload never hangs forever
         const timeout = setTimeout(() => {
@@ -91,7 +88,6 @@ export class StorageService {
           async () => {
             clearTimeout(timeout);
             const url = await getDownloadURL(task.snapshot.ref);
-            console.log('[StorageService] Logo upload completed.');
             resolve(url);
           }
         );
@@ -116,8 +112,6 @@ export class StorageService {
       const storageRef = ref(storage, path);
       const task: UploadTask = uploadBytesResumable(storageRef, file);
 
-      console.log('[StorageService] Image upload started:', filename);
-
       return new Promise<string>((resolve, reject) => {
         // Set a timeout so the upload never hangs forever
         const timeout = setTimeout(() => {
@@ -138,7 +132,6 @@ export class StorageService {
           async () => {
             clearTimeout(timeout);
             const url = await getDownloadURL(task.snapshot.ref);
-            console.log('[StorageService] Image upload completed:', filename);
             resolve(url);
           }
         );
@@ -154,7 +147,6 @@ export class StorageService {
       const storage = this.getStorageInstance();
       const storageRef = ref(storage, url);
       await deleteObject(storageRef);
-      console.log('[StorageService] File deleted:', url);
     } catch (err) {
       console.warn('[StorageService] File deletion failed (may not exist):', err);
     }

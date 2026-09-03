@@ -1,8 +1,10 @@
 import { Injectable, inject, ApplicationRef, createComponent, EnvironmentInjector } from '@angular/core';
 import { toPng } from 'html-to-image';
 import { Business } from '../models/business.model';
-import { Salon01Component } from '../components/demo/salon01/salon01.component';
 import { CommonModule } from '@angular/common';
+import { getTemplateComponent } from '../components/demo/templates/template.registry';
+
+import '../components/demo/templates/template.init';
 
 export type ScreenshotFormat = 'desktop' | 'mobile';
 
@@ -111,6 +113,17 @@ export class ScreenshotService {
     // Replace image sources with data URLs
     const cleanup = this.replaceImageSources(element, imageMap);
 
+    // The templates use `position: fixed` for their sticky header and mobile
+    // CTA bar, which is correct on the real /demo/:slug page (the capture
+    // container IS the viewport there). Here the container is an offscreen
+    // <div>, not a real viewport — `fixed` positions relative to the actual
+    // browser viewport instead, so the header/CTA visually escape the
+    // container entirely and html-to-image never captures them where they
+    // should appear. Pin them to `absolute` within the container (which is
+    // itself `position: fixed`, so it still establishes a containing block)
+    // for the duration of the capture, then restore the original styling.
+    const restorePositioning = this.neutralizeFixedPositioning(element);
+
     try {
       // Wait for images to settle
       await new Promise((r) => setTimeout(r, 500));
@@ -127,8 +140,31 @@ export class ScreenshotService {
 
       return dataUrl;
     } finally {
+      restorePositioning();
       cleanup();
     }
+  }
+
+  private neutralizeFixedPositioning(container: HTMLElement): () => void {
+    const originals: { el: HTMLElement; style: string }[] = [];
+
+    container.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const position = window.getComputedStyle(el).position;
+      if (position === 'fixed' || position === 'sticky') {
+        originals.push({ el, style: el.getAttribute('style') || '' });
+        el.style.position = 'absolute';
+      }
+    });
+
+    return () => {
+      originals.forEach(({ el, style }) => {
+        if (style) {
+          el.setAttribute('style', style);
+        } else {
+          el.removeAttribute('style');
+        }
+      });
+    };
   }
 
   private collectImageUrls(container: HTMLElement): string[] {
@@ -183,8 +219,16 @@ export class ScreenshotService {
     let componentRef: any = null;
 
     try {
-      // Dynamically create the salon component within the existing app
-      componentRef = createComponent(Salon01Component, {
+      // Get the appropriate template component for this business
+      const templateId = business.templateId || 'salon-01';
+      const templateComponent = getTemplateComponent(templateId);
+
+      if (!templateComponent) {
+        throw new Error(`Unsupported template: ${templateId}`);
+      }
+
+      // Dynamically create the template component
+      componentRef = createComponent(templateComponent, {
         environmentInjector: this.injector,
         hostElement: container,
       });

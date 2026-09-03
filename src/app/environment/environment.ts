@@ -14,28 +14,48 @@ let _configCache: {
   appId: string;
 } | null = null;
 
+async function readEnvConfigJson(): Promise<Record<string, string>> {
+  // A relative fetch('/env-config.json') resolves against the current page
+  // in a browser, but Node's fetch() has no page to resolve it against and
+  // throws immediately — meaning this would ALWAYS fail during SSR and
+  // silently fall back to an empty config on every server-rendered request.
+  // On the server, read the same file straight off disk instead: it's
+  // deployed as a static asset right next to the server bundle itself
+  // (dist/<app>/browser/env-config.json, sibling to dist/<app>/server/).
+  const isNode = typeof process !== 'undefined' && !!process.versions?.node;
+  if (isNode) {
+    // A non-literal specifier keeps esbuild from trying to statically
+    // resolve this Node builtin for the browser bundle (this branch never
+    // executes there — `isNode` is false — but esbuild would still fail
+    // the browser build if it saw a literal `import('node:fs/promises')`).
+    const fsPromisesSpecifier = ['node:fs', 'promises'].join('/');
+    const { readFile } = await import(fsPromisesSpecifier);
+    const configUrl = new URL('../browser/env-config.json', import.meta.url);
+    const text = await readFile(configUrl, 'utf-8');
+    return JSON.parse(text);
+  }
+
+  const resp = await fetch('/env-config.json');
+  if (!resp.ok) {
+    throw new Error(`env-config.json responded with ${resp.status}`);
+  }
+  return resp.json();
+}
+
 export async function getFirebaseConfig() {
   if (_configCache) return _configCache;
 
   try {
-    const resp = await fetch('/env-config.json');
-    if (resp.ok) {
-      const env = await resp.json();
-      _configCache = {
-        apiKey: env.FIREBASE_API_KEY || '',
-        authDomain: env.FIREBASE_AUTH_DOMAIN || '',
-        projectId: env.FIREBASE_PROJECT_ID || '',
-        storageBucket: env.FIREBASE_STORAGE_BUCKET || '',
-        messagingSenderId: env.FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: env.FIREBASE_APP_ID || '',
-      };
-
-      console.log('[Firebase Config]');
-      for (const [key, val] of Object.entries(_configCache)) {
-        console.log(`  ${key}: ${val ? 'present' : 'MISSING'}`);
-      }
-      return _configCache;
-    }
+    const env = await readEnvConfigJson();
+    _configCache = {
+      apiKey: env['FIREBASE_API_KEY'] || '',
+      authDomain: env['FIREBASE_AUTH_DOMAIN'] || '',
+      projectId: env['FIREBASE_PROJECT_ID'] || '',
+      storageBucket: env['FIREBASE_STORAGE_BUCKET'] || '',
+      messagingSenderId: env['FIREBASE_MESSAGING_SENDER_ID'] || '',
+      appId: env['FIREBASE_APP_ID'] || '',
+    };
+    return _configCache;
   } catch (err) {
     console.error('[Firebase Config] Failed to load env-config.json:', err);
   }

@@ -11,6 +11,13 @@ import { ActivatedRoute, Router, RouterModule, CanDeactivate } from '@angular/ro
 import { BusinessService } from '../../../services/business.service';
 import { StorageService } from '../../../services/storage.service';
 import { Business } from '../../../models/business.model';
+import {
+  getDefaultTemplateForCategory,
+  getTemplatesForCategory,
+  getTemplateDisplayName,
+  isTemplateSupported,
+  TemplateMetadata,
+} from '../../demo/templates/template.registry';
 
 @Component({
   selector: 'app-business-form',
@@ -39,12 +46,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   private formPristine = true;
 
   categories = ['Salon', 'Restaurant', 'Gym', 'Local Service'];
-  templates = [
-    { id: 'salon-01', label: 'Salon 01', available: true },
-    { id: 'restaurant-01', label: 'Restaurant 01', available: false },
-    { id: 'gym-01', label: 'Gym 01', available: false },
-    { id: 'local-service-01', label: 'Local Service 01', available: false },
-  ];
+  availableTemplates = signal<TemplateMetadata[]>([]);
 
   // Smart fallback content
   private fallbacks: Record<string, { tagline: string; description: string }> = {
@@ -91,10 +93,28 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     this.form.valueChanges.subscribe(() => {
       this.formPristine = false;
     });
+
+    // Update available templates when category changes
+    this.form.get('category')?.valueChanges.subscribe((category) => {
+      if (category) {
+        this.updateAvailableTemplates(category);
+        // Auto-select first available template for the category
+        const defaultTemplate = getDefaultTemplateForCategory(category);
+        if (defaultTemplate) {
+          this.form.patchValue({ templateId: defaultTemplate });
+        }
+      } else {
+        this.availableTemplates.set([]);
+      }
+    });
   }
 
   ngOnDestroy(): void {
     // Nothing to clean up
+  }
+
+  private updateAvailableTemplates(category: string): void {
+    this.availableTemplates.set(getTemplatesForCategory(category));
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -176,6 +196,11 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         address: business.address,
         status: business.status,
       });
+
+      // Update available templates for the loaded business category
+      if (business.category) {
+        this.updateAvailableTemplates(business.category);
+      }
 
       if (business.logoUrl) {
         this.logoPreview.set(business.logoUrl);
@@ -333,11 +358,8 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   }
 
   async onSubmit(status?: 'draft' | 'published'): Promise<void> {
-    console.log('[SAVE] onSubmit started, status:', status || 'form-default');
-
     // Read status from the form if not explicitly passed
     const formStatus = status || this.form.get('status')?.value || 'draft';
-    console.log('[SAVE] Form status:', formStatus);
 
     // Validate required fields
     if (!this.form.get('businessName')?.value?.trim()) {
@@ -365,12 +387,11 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Check if template is available
+    // Check if template is supported
     const templateId = this.form.get('templateId')?.value;
-    const template = this.templates.find((t) => t.id === templateId);
-    if (template && !template.available) {
+    if (!isTemplateSupported(templateId)) {
       this.errorMessage.set(
-        `${template.label} is coming soon. Please select an available template.`
+        `${getTemplateDisplayName(templateId)} is not available. Please select a supported template.`
       );
       return;
     }
@@ -383,38 +404,29 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
 
     // Safety timeout: if save takes more than 30 seconds, force reset
     const safetyTimeout = setTimeout(() => {
-      console.error('[SAVE] Safety timeout triggered — save took too long!');
       this.saving.set(false);
       this.errorMessage.set('The save operation took too long. Please try again.');
     }, 30000);
 
     try {
-      console.log('[SAVE] Step 1: Form valid, preparing data...');
       const formValue = this.form.value;
 
       // Generate slug
       const slug = this.businessService.generateSlug(formValue.businessName);
-      console.log('[SAVE] Step 2: Slug generated:', slug);
 
       // Check slug uniqueness
       let finalSlug = slug;
       if (!this.isEditMode()) {
-        console.log('[SAVE] Step 3: Checking slug uniqueness...');
         const isUnique = await this.businessService.isSlugUnique(slug);
-        console.log('[SAVE] Step 3: Slug unique:', isUnique);
         if (!isUnique) {
           const uniqueSlug = await this.businessService.generateUniqueSlug(slug);
           finalSlug = uniqueSlug;
-          console.log('[SAVE] Step 3: Unique slug generated:', uniqueSlug);
         }
       } else {
-        console.log('[SAVE] Step 3: Checking slug uniqueness (edit mode)...');
         const isUnique = await this.businessService.isSlugUnique(slug, this.businessId());
-        console.log('[SAVE] Step 3: Slug unique:', isUnique);
         if (!isUnique) {
           const uniqueSlug = await this.businessService.generateUniqueSlug(slug, this.businessId());
           finalSlug = uniqueSlug;
-          console.log('[SAVE] Step 3: Unique slug generated:', uniqueSlug);
         }
       }
 
@@ -437,62 +449,45 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         status: formStatus,
       };
 
-      console.log('[SAVE] Step 4: Business data prepared');
-
       let businessId = this.businessId();
 
       // Create or update
       if (this.isEditMode()) {
-        console.log('[SAVE] Step 5: Updating Firestore document, ID:', businessId);
         await this.businessService.updateBusiness(businessId, businessData);
-        console.log('[SAVE] Step 5: Firestore document updated');
       } else {
-        console.log('[SAVE] Step 5: Creating Firestore document...');
         businessId = await this.businessService.createBusiness(businessData as Business);
         this.businessId.set(businessId);
         this.isEditMode.set(true);
-        console.log('[SAVE] Step 5: Firestore document created, ID:', businessId);
       }
 
       // Upload logo
       if (this.logoFile()) {
-        console.log('[SAVE] Step 6: Logo upload started...');
         const logoUrl = await this.storageService.uploadLogo(businessId, this.logoFile()!);
-        console.log('[SAVE] Step 6: Logo upload completed, updating Firestore...');
         await this.businessService.updateBusiness(businessId, { logoUrl });
-        console.log('[SAVE] Step 6: Firestore updated with logo URL');
-      } else {
-        console.log('[SAVE] Step 6: No logo to upload, skipping');
       }
 
       // Upload new images
-      console.log('[SAVE] Step 7: Processing gallery images...');
       const newImageUrls: string[] = [];
       for (let i = 0; i < this.imageFiles().length; i++) {
-        console.log(`[SAVE] Step 7: Uploading image ${i + 1} of ${this.imageFiles().length}...`);
         const url = await this.storageService.uploadImage(businessId, this.imageFiles()[i]);
         newImageUrls.push(url);
-        console.log(`[SAVE] Step 7: Image ${i + 1} uploaded`);
       }
 
       // Remove deleted existing images from storage
-      console.log('[SAVE] Step 8: Removing deleted images from storage...');
       for (const removedUrl of this.removedExistingImages()) {
         await this.storageService.deleteFile(removedUrl);
       }
 
-      // Collect remaining images
-      const remainingExistingImages = this.imagePreviews()
-        .slice(this.imageFiles().length)
-        .filter((url) => !this.removedExistingImages().includes(url));
-      const allImages = [...remainingExistingImages, ...newImageUrls];
-
-      if (allImages.length > 0 || this.removedExistingImages().length > 0) {
-        console.log('[SAVE] Step 9: Updating Firestore with images array...');
+      // Only touch the images field in Firestore if images actually changed
+      // (new uploads or removals) — otherwise this would re-write the same
+      // unchanged image list on every save, adding an avoidable extra
+      // Firestore round-trip to edits that never touched the gallery.
+      if (this.imageFiles().length > 0 || this.removedExistingImages().length > 0) {
+        const remainingExistingImages = this.imagePreviews()
+          .slice(this.imageFiles().length)
+          .filter((url) => !this.removedExistingImages().includes(url));
+        const allImages = [...remainingExistingImages, ...newImageUrls];
         await this.businessService.updateBusiness(businessId, { images: allImages });
-        console.log('[SAVE] Step 9: Firestore updated with images');
-      } else {
-        console.log('[SAVE] Step 9: No image changes to save');
       }
 
       // Set demo URL
@@ -509,8 +504,6 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       this.removedExistingImages.set([]);
       this.formPristine = true;
 
-      console.log('[SAVE] Step 10: Save completed successfully!');
-
       // If published, open demo after a brief delay
       if (formStatus === 'published') {
         setTimeout(() => {
@@ -519,9 +512,6 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       }
     } catch (err: any) {
       console.error('[SAVE] ERROR:', err);
-      console.error('[SAVE] ERROR code:', err?.code);
-      console.error('[SAVE] ERROR message:', err?.message);
-      console.error('[SAVE] ERROR name:', err?.name);
       // Show user-friendly error
       const message = err?.message || 'Failed to save business. Please try again.';
       if (message.includes('not initialized') || message.includes('Firebase is not ready')) {
@@ -537,7 +527,6 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       }
     } finally {
       clearTimeout(safetyTimeout);
-      console.log('[SAVE] Finally: setting saving = false');
       this.saving.set(false);
     }
   }
@@ -553,7 +542,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   }
 
   getTemplateLabel(templateId: string): string {
-    return this.templates.find((t) => t.id === templateId)?.label || templateId;
+    return getTemplateDisplayName(templateId);
   }
 
   isFieldInvalid(field: string): boolean {

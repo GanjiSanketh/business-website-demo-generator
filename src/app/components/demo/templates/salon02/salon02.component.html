@@ -1,0 +1,374 @@
+<!-- HEADER -->
+<header class="salon02-header" [class.scrolled]="isScrolled">
+  <div class="header-container">
+    <a class="header-logo" (click)="scrollTo('home')" aria-label="Go to top">
+      @if (business.logoUrl) {
+        <img [src]="business.logoUrl" [alt]="business.businessName" class="header-logo-img" />
+      } @else {
+        <span class="header-logo-text">{{ business.businessName }}</span>
+      }
+    </a>
+
+    <nav class="header-nav" [class.open]="mobileMenuOpen" role="navigation" aria-label="Main navigation">
+      <a class="nav-link" (click)="scrollTo('home')">Home</a>
+      <a class="nav-link" (click)="scrollTo('about')">About</a>
+      <a class="nav-link" (click)="scrollTo('services')">Services</a>
+      <a class="nav-link" (click)="scrollTo('gallery')">Gallery</a>
+      <a class="nav-link" (click)="scrollTo('contact')">Contact</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="header-cta" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer" aria-label="Book appointment on WhatsApp">
+        <span>Book Appointment</span>
+        <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+      </a>
+
+      <button class="mobile-menu-btn" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen" aria-label="Toggle menu" type="button">
+        @if (!mobileMenuOpen) {
+          <i class="bi bi-list" aria-hidden="true"></i>
+        } @else {
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        }
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- MOBILE BOTTOM CTA -->
+<div class="mobile-cta-bar" [class.visible]="showMobileCta">
+  <a class="mobile-cta-btn" [href]="phoneUrl" aria-label="Call us">
+    <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+    <span>Call</span>
+  </a>
+  <a class="mobile-cta-btn primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp">
+    <i class="bi bi-whatsapp" aria-hidden="true"></i>
+    <span>WhatsApp</span>
+  </a>
+</div>
+
+<main>
+  <!-- HERO -->
+  <section id="home" class="salon02-hero" aria-labelledby="hero-title">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <span class="hero-label">{{ business.category || 'Salon' }}</span>
+        <h1 id="hero-title">{{ business.businessName }}</h1>
+        @if (business.tagline) {
+          <p class="hero-tagline">{{ business.tagline }}</p>
+        }
+        @if (business.description) {
+          <p class="hero-description">{{ business.description }}</p>
+        }
+        <div class="hero-actions">
+          <a class="btn-primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+            <span>Book Appointment</span>
+            <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+          </a>
+          <a class="btn-secondary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-whatsapp" aria-hidden="true"></i>
+            <span>WhatsApp</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        @if (heroImage && !heroImageError) {
+          <div class="hero-image-wrapper">
+            <img [src]="heroImage" [alt]="business.businessName" loading="eager" (error)="onHeroImageError()" />
+          </div>
+        } @else {
+          <div class="hero-image-wrapper hero-fallback">
+            <div class="fallback-content">
+              <i class="bi bi-scissors"></i>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="salon02-about" aria-labelledby="about-title">
+    <div class="section-container">
+      <div class="about-grid">
+        <div class="about-text">
+          <span class="section-label">About the Studio</span>
+          <h2 id="about-title">{{ business.businessName }}</h2>
+          <p>{{ displayDescription }}</p>
+
+          <div class="about-values">
+            <div class="value-item">
+              <span class="value-number">01</span>
+              <div class="value-text">
+                <strong>Expert Styling</strong>
+                <p>Precision cuts and contemporary techniques</p>
+              </div>
+            </div>
+            <div class="value-item">
+              <span class="value-number">02</span>
+              <div class="value-text">
+                <strong>Personalized Service</strong>
+                <p>Every appointment tailored to you</p>
+              </div>
+            </div>
+            <div class="value-item">
+              <span class="value-number">03</span>
+              <div class="value-text">
+                <strong>Modern Beauty</strong>
+                <p>Current trends with timeless elegance</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-visual" aria-hidden="true">
+          @if (heroImage && !heroImageError) {
+            <div class="about-image-wrapper">
+              <img [src]="heroImage" [alt]="business.businessName" loading="lazy" (error)="onHeroImageError()" />
+            </div>
+          } @else {
+            <div class="about-image-wrapper about-fallback" aria-hidden="true">
+              <i class="bi bi-scissors"></i>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section id="services" class="salon02-services" aria-labelledby="services-title">
+    <div class="section-container">
+      <span class="section-label">What We Offer</span>
+      <h2 id="services-title">Our Services</h2>
+
+      <div class="services-list" role="list">
+        @for (service of displayServices; track $index; let i = $index) {
+          <article class="service-item" role="listitem" tabindex="0">
+            <span class="service-number">{{ (i + 1).toString().padStart(2, '0') }}</span>
+            <div class="service-content">
+              <h3 class="service-name">{{ service }}</h3>
+              <div class="service-line" aria-hidden="true"></div>
+            </div>
+            <a class="service-cta" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Book ' + service + ' via WhatsApp'">
+              <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+            </a>
+          </article>
+        }
+      </div>
+
+      <!-- SERVICE CTA -->
+      <div class="service-cta-section">
+        <h3>Ready for your next look?</h3>
+        <a class="btn-primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+          <span>Book an Appointment</span>
+          <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section id="gallery" class="salon02-gallery" aria-labelledby="gallery-title">
+    <div class="section-container">
+      <span class="section-label">Our Work</span>
+      <h2 id="gallery-title">Gallery</h2>
+
+      @if (galleryImages.length > 0) {
+        <div class="gallery-grid" role="list">
+          @if (galleryImages.length >= 1) {
+            <figure class="gallery-item featured" role="listitem" (click)="openLightbox(0)" tabindex="0" (keydown.enter)="openLightbox(0)" (keydown.space)="openLightbox(0)" aria-label="View gallery image 1">
+              @if (!galleryImageErrors[0]) {
+                <img [src]="galleryImages[0]" [alt]="business.businessName + ' gallery 1'" loading="lazy" (error)="onGalleryImageError(0)" />
+              } @else {
+                <div class="gallery-fallback"><i class="bi bi-image"></i></div>
+              }
+              <figcaption class="gallery-caption" aria-hidden="true">
+                <span>{{ business.businessName }}</span>
+                <i class="bi bi-arrows-fullscreen"></i>
+              </figcaption>
+            </figure>
+          }
+
+          <div class="gallery-secondary" role="list">
+            @for (image of galleryImages; track $index; let i = $index) {
+              @if (i > 0) {
+                <figure class="gallery-item" role="listitem" (click)="openLightbox(i)" tabindex="0" (keydown.enter)="openLightbox(i)" (keydown.space)="openLightbox(i)" [attr.aria-label]="'View gallery image ' + (i + 1)">
+                  @if (!galleryImageErrors[i]) {
+                    <img [src]="image" [alt]="business.businessName + ' gallery ' + (i + 1)" loading="lazy" (error)="onGalleryImageError(i)" />
+                  } @else {
+                    <div class="gallery-fallback"><i class="bi bi-image"></i></div>
+                  }
+                  <figcaption class="gallery-caption" aria-hidden="true">
+                    <span>{{ business.businessName }}</span>
+                    <i class="bi bi-arrows-fullscreen"></i>
+                  </figcaption>
+                </figure>
+              }
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="gallery-placeholder" aria-hidden="true">
+          <div class="gallery-placeholder-content">
+            <i class="bi bi-images"></i>
+            <p>Gallery coming soon</p>
+            <span class="placeholder-hint">Upload photos in the admin dashboard to showcase your work</span>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="salon02-contact" aria-labelledby="contact-title">
+    <div class="section-container">
+      <span class="section-label">Get in Touch</span>
+      <h2 id="contact-title">Contact Us</h2>
+
+      @if (hasContactInfo) {
+        <div class="contact-grid">
+          @if (business.phone) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-telephone-fill"></i>
+              </div>
+              <div class="contact-content">
+                <h3>Call Us</h3>
+                <a [href]="phoneUrl">{{ business.phone }}</a>
+              </div>
+            </div>
+          }
+
+          @if (business.whatsapp) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-whatsapp"></i>
+              </div>
+              <div class="contact-content">
+                <h3>WhatsApp</h3>
+                <a [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">Chat with us</a>
+              </div>
+            </div>
+          }
+
+          @if (business.address) {
+            <div class="contact-item">
+              <div class="contact-icon" aria-hidden="true">
+                <i class="bi bi-geo-alt-fill"></i>
+              </div>
+              <div class="contact-content">
+                <h3>Visit Us</h3>
+                <p>{{ business.address }}</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="contact-actions">
+          @if (business.phone) {
+            <a class="btn-primary" [href]="phoneUrl">
+              <i class="bi bi-telephone" aria-hidden="true"></i>
+              <span>Call Now</span>
+            </a>
+          }
+          @if (business.whatsapp) {
+            <a class="btn-whatsapp" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-whatsapp" aria-hidden="true"></i>
+              <span>WhatsApp</span>
+            </a>
+          }
+          @if (business.address) {
+            <a class="btn-maps" [href]="mapsUrl" target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-geo-alt" aria-hidden="true"></i>
+              <span>Get Directions</span>
+            </a>
+          }
+        </div>
+      } @else {
+        <div class="contact-placeholder">
+          <i class="bi bi-envelope" aria-hidden="true"></i>
+          <p>Contact information will be displayed here once configured.</p>
+        </div>
+      }
+    </div>
+  </section>
+</main>
+
+<!-- FOOTER -->
+<footer class="salon02-footer" role="contentinfo">
+  <div class="footer-container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          @if (business.logoUrl) {
+            <img [src]="business.logoUrl" [alt]="business.businessName" />
+          } @else {
+            <span>{{ business.businessName }}</span>
+          }
+        </div>
+        <p>{{ business.tagline || 'Modern boutique salon experience.' }}</p>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <h4>Navigate</h4>
+        <a (click)="scrollTo('home')">Home</a>
+        <a (click)="scrollTo('about')">About</a>
+        <a (click)="scrollTo('services')">Services</a>
+        <a (click)="scrollTo('gallery')">Gallery</a>
+        <a (click)="scrollTo('contact')">Contact</a>
+      </nav>
+
+      <div class="footer-contact">
+        <h4>Contact</h4>
+        @if (business.phone) {
+          <a [href]="phoneUrl">
+            <i class="bi bi-telephone" aria-hidden="true"></i>
+            {{ business.phone }}
+          </a>
+        }
+        @if (business.whatsapp) {
+          <a [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-whatsapp" aria-hidden="true"></i>
+            WhatsApp
+          </a>
+        }
+        @if (business.address) {
+          <address>
+            <i class="bi bi-geo-alt" aria-hidden="true"></i>
+            {{ business.address }}
+          </address>
+        }
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; {{ currentYear }} {{ business.businessName }}. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- LIGHTBOX -->
+@if (lightboxOpen && galleryImages.length > 0) {
+  <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true" aria-label="Image gallery">
+    <button class="lightbox-close" (click)="$event.stopPropagation(); closeLightbox()" aria-label="Close gallery" type="button">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <button class="lightbox-nav prev" (click)="$event.stopPropagation(); prevLightbox()" aria-label="Previous image" type="button" [hidden]="galleryImages.length <= 1">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="lightbox-nav next" (click)="$event.stopPropagation(); nextLightbox()" aria-label="Next image" type="button" [hidden]="galleryImages.length <= 1">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <div class="lightbox-content">
+      @if (!galleryImageErrors[lightboxIndex]) {
+        <img [src]="galleryImages[lightboxIndex]" [alt]="business.businessName + ' gallery ' + (lightboxIndex + 1)" />
+      } @else {
+        <div class="lightbox-fallback"><i class="bi bi-image"></i></div>
+      }
+    </div>
+    <div class="lightbox-counter" aria-hidden="true">
+      {{ lightboxIndex + 1 }} / {{ galleryImages.length }}
+    </div>
+  </div>
+}

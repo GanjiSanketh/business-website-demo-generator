@@ -26,14 +26,23 @@ export class AuthService implements OnDestroy {
     return user !== null && ALLOWED_EMAILS.includes(user.email ?? '');
   });
 
+  /**
+   * Resolves once Firebase app initialization has settled (successfully or
+   * not). Other services that depend on the Firebase app being ready (e.g.
+   * BusinessService.getDb()) should await this before calling getApps() —
+   * initFirebase() runs asynchronously from the constructor, so without
+   * this, a synchronous getApps() check right after injection can run
+   * before the app actually exists yet.
+   */
+  readonly ready: Promise<void>;
+
   constructor() {
-    this.initFirebase();
+    this.ready = this.initFirebase();
   }
 
   private async initFirebase(): Promise<void> {
     try {
       const config = await getFirebaseConfig();
-      console.log('[Auth] Firebase config loaded. Initializing...');
       this.app = initializeApp(config);
       this.auth = getAuth(this.app);
 
@@ -41,9 +50,6 @@ export class AuthService implements OnDestroy {
         this.currentUser.set(user);
         this.loading.set(false);
       });
-
-      console.log('[Auth] Firebase app initialized: true');
-      console.log('[Auth] Auth instance initialized: true');
     } catch (err) {
       console.error('[Auth] Firebase initialization failed:', err);
       this.loading.set(false);
@@ -55,15 +61,11 @@ export class AuthService implements OnDestroy {
   }
 
   async loginWithGoogle(): Promise<{ authorized: boolean }> {
-    console.log('[Auth] Attempting Google Sign-In...');
-    console.log('[Auth] Firebase app initialized:', !!this.app);
-    console.log('[Auth] Auth instance initialized:', !!this.auth);
     if (!this.auth) {
       throw new Error('Firebase Auth is not initialized. Check FIREBASE environment variables.');
     }
     const provider = new GoogleAuthProvider();
     const credential = await signInWithPopup(this.auth, provider);
-    console.log('[Auth] Google Sign-In successful. Email:', credential.user.email);
     const email = credential.user.email ?? '';
 
     if (!ALLOWED_EMAILS.includes(email)) {

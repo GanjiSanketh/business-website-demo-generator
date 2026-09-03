@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "ruv-swarm": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "ruv-swarm",
+        "mcp",
+        "start"
+      ],
+      "env": {
+        "npm_config_update_notifier": "false"
+      },
+      "optional": true
+    },
+    "flow-nexus": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "flow-nexus@latest",
+        "mcp",
+        "start"
+      ],
+      "env": {
+        "npm_config_update_notifier": "false"
+      },
+      "optional": true,
+      "requiresAuth": true
+    }
+  }
+}

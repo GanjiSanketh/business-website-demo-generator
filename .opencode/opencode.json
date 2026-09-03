@@ -3,9 +3,11 @@
   "provider": {
     "openrouter": {
       "models": {
-        "owl-alpha": {}
+        "z-ai/glm-5.3-flash": {
+          "name": "GLM-5.3-Flash (Ox Alpha)"
+        }
       }
     }
   },
-  "model": "openrouter/owl-alpha"
+  "model": "openrouter/z-ai/glm-5.3-flash"
 }

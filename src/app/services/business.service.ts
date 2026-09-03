@@ -56,10 +56,17 @@ export class BusinessService {
   /**
    * Lazily initialize and return the Firestore instance.
    */
-  private getDb() {
+  private async getDb() {
     if (this.db && this.dbInitialized) {
       return this.db;
     }
+
+    // AuthService kicks off Firebase app initialization asynchronously from
+    // its own constructor. Without waiting for it here, a call to getApps()
+    // right after injection can run before the app has actually been
+    // created — this reliably loses that race during SSR, and can flake in
+    // the browser too, since nothing else guarantees the ordering.
+    await this.authService.ready;
 
     try {
       const apps = getApps();
@@ -70,7 +77,6 @@ export class BusinessService {
 
       this.db = getFirestore(apps[0]);
       this.dbInitialized = true;
-      console.log('[BusinessService] Firestore initialized successfully.');
       return this.db;
     } catch (err) {
       console.error('[BusinessService] Failed to initialize Firestore:', err);
@@ -81,7 +87,7 @@ export class BusinessService {
   async getBusinesses(): Promise<Business[]> {
     this.loading.set(true);
     try {
-      const db = this.getDb();
+      const db = await this.getDb();
       const q = query(
         collection(db, this.collectionName),
         orderBy('createdAt', 'desc')
@@ -105,7 +111,7 @@ export class BusinessService {
   }
 
   async getBusinessById(id: string): Promise<Business | null> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const docRef = doc(db, this.collectionName, id);
     const snapshot = await this.withTimeout(getDoc(docRef), 15000, 'getBusinessById');
     if (!snapshot.exists()) return null;
@@ -113,7 +119,7 @@ export class BusinessService {
   }
 
   async getBusinessBySlug(slug: string): Promise<Business | null> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const q = query(
       collection(db, this.collectionName),
       where('slug', '==', slug),
@@ -126,7 +132,7 @@ export class BusinessService {
   }
 
   async createBusiness(business: Business): Promise<string> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const now = Timestamp.now();
     const dataToSave: DocumentData = {
       businessName: business.businessName || '',
@@ -151,17 +157,14 @@ export class BusinessService {
       dataToSave['images'] = business.images;
     }
 
-    console.log('[BusinessService] Creating business document...');
     try {
       const docRef = await this.withTimeout(
         addDoc(collection(db, this.collectionName), dataToSave),
         15000,
         'createBusiness'
       );
-      console.log('[BusinessService] Business created with ID:', docRef.id);
       return docRef.id;
     } catch (err: any) {
-      console.error('[BusinessService] createBusiness error:', err);
       if (err?.message?.includes('NOT_FOUND') || err?.message?.includes('Could not reach')) {
         throw new Error('Firestore database is not available. Please create a Firestore database in your Firebase Console (Firestore Database → Create database).');
       }
@@ -173,7 +176,7 @@ export class BusinessService {
   }
 
   async updateBusiness(id: string, data: Partial<Business>): Promise<void> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const docRef = doc(db, this.collectionName, id);
 
     const cleanData: DocumentData = {};
@@ -184,10 +187,8 @@ export class BusinessService {
     }
     cleanData['updatedAt'] = Timestamp.now();
 
-    console.log('[BusinessService] Updating business:', id);
     try {
       await this.withTimeout(updateDoc(docRef, cleanData), 15000, 'updateBusiness');
-      console.log('[BusinessService] Business updated successfully.');
     } catch (err: any) {
       console.error('[BusinessService] updateBusiness error:', err);
       if (err?.message?.includes('NOT_FOUND') || err?.message?.includes('Could not reach')) {
@@ -198,7 +199,7 @@ export class BusinessService {
   }
 
   async deleteBusiness(id: string): Promise<void> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const docRef = doc(db, this.collectionName, id);
     await this.withTimeout(deleteDoc(docRef), 15000, 'deleteBusiness');
   }
@@ -232,7 +233,7 @@ export class BusinessService {
   }
 
   async isSlugUnique(slug: string, excludeId?: string): Promise<boolean> {
-    const db = this.getDb();
+    const db = await this.getDb();
     const q = query(
       collection(db, this.collectionName),
       where('slug', '==', slug)
