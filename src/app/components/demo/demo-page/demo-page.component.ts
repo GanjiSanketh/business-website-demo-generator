@@ -5,14 +5,18 @@ import { BusinessService } from '../../../services/business.service';
 import { Business } from '../../../models/business.model';
 import {
   getTemplateComponent,
+  getDefaultThemeForTemplate,
   getTemplateDisplayName,
   isTemplateSupported,
+  getDefaultTemplateForCategory,
 } from '../templates/template.registry';
+import { resolveThemeConfig, ThemeConfig } from '../themes/theme.registry';
 
 import '../templates/template.init';
 
 interface TemplateComponent {
   business: Business;
+  theme?: ThemeConfig;
 }
 
 @Component({
@@ -106,20 +110,27 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     }
 
     try {
+      const business = this.business()!;
       const ref = this.vcr.createComponent(componentType) as ComponentRef<TemplateComponent>;
       this.templateRef = ref;
-      ref.instance.business = this.business()!;
+      ref.instance.business = business;
+      // Theme = persisted choices (themeId + style overrides) resolved against
+      // the registry, falling back to the template's default theme.
+      ref.instance.theme = resolveThemeConfig(
+        business.themeId,
+        business.themeOptions,
+        getDefaultThemeForTemplate(effectiveTemplateId)
+      );
       ref.changeDetectorRef.detectChanges();
     } catch {
       this.templateUnavailable.set(true);
     }
   }
 
+  /** Category's first registered template (registry-driven; 'salon-01' only
+   *  remains as an ultimate safety net when no category matches). */
   private getDefaultTemplateForBusiness(): string {
-    const business = this.business();
-    if (!business) return 'salon-01';
-    const category = business.category?.toLowerCase() ?? '';
-    if (category === 'salon') return 'salon-01';
-    return 'salon-01';
+    const category = this.business()?.category ?? '';
+    return getDefaultTemplateForCategory(category) ?? 'salon-01';
   }
 }

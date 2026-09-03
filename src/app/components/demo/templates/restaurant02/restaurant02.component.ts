@@ -6,19 +6,20 @@ import {
   buildThemeCss,
   themeOptionClasses,
 } from '../../themes/theme.registry';
+import { getCategoryDisplayName } from '../../categories/category.registry';
 
 @Component({
-  selector: 'app-salon02',
+  selector: 'app-restaurant02',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './salon02.component.html',
-  styleUrl: './salon02.component.css',
+  templateUrl: './restaurant02.component.html',
+  styleUrl: './restaurant02.component.css',
   host: {
     '[style]': 'themeCss',
     '[class]': 'themeClasses',
   },
 })
-export class Salon02Component implements OnInit, OnDestroy {
+export class Restaurant02Component implements OnInit, OnDestroy {
   @Input({ required: true }) business!: Business;
   currentYear = new Date().getFullYear();
 
@@ -42,12 +43,30 @@ export class Salon02Component implements OnInit, OnDestroy {
   lightboxOpen = false;
   lightboxIndex = 0;
   heroImageError = false;
+  heroImage2Error = false;
   galleryImageErrors: boolean[] = [];
   private scrollY = signal(0);
   private document = inject(DOCUMENT);
 
+  /** Distinct visual icons that cycle across the offerings grid. */
+  private static readonly SERVICE_ICONS = [
+    'bi-cup-hot',
+    'bi-egg-fried',
+    'bi-fire',
+    'bi-basket',
+    'bi-moon-stars',
+    'bi-cup-straw',
+    'bi-star',
+    'bi-flower1',
+  ];
+
   get heroImage(): string {
     return this.business.images?.[0] || '';
+  }
+
+  /** Secondary image for the collage tile (differs from the hero when available). */
+  get heroImage2(): string {
+    return this.business.images?.[1] || this.heroImage;
   }
 
   get galleryImages(): string[] {
@@ -73,20 +92,52 @@ export class Salon02Component implements OnInit, OnDestroy {
     return !!(this.business.phone || this.business.whatsapp || this.business.address);
   }
 
+  get hasWhatsApp(): boolean {
+    return !!this.business.whatsapp;
+  }
+
+  get hasPhone(): boolean {
+    return !!this.business.phone;
+  }
+
+  /** Primary conversion target: WhatsApp when available, otherwise a call. */
+  get primaryCtaUrl(): string {
+    return this.hasWhatsApp ? this.whatsappUrl : this.hasPhone ? this.phoneUrl : '';
+  }
+
+  get primaryCtaLabel(): string {
+    return this.hasWhatsApp ? 'Book a Table' : 'Call to Book';
+  }
+
+  get categoryLabel(): string {
+    return getCategoryDisplayName(this.business.category, 'Restaurant & Dining');
+  }
+
   get isScrolled(): boolean {
     return this.scrollY() > 20;
   }
 
   get showMobileCta(): boolean {
-    return window.innerWidth <= 768 && this.scrollY() > 100;
+    return window.innerWidth <= 768 && this.scrollY() > 120;
   }
 
   get displayDescription(): string {
     return this.business.description || this.getDefaultDescription();
   }
 
-  get displayServices(): string[] {
-    return this.business.services?.length ? this.business.services : this.getDefaultServices();
+  /** Hero excerpt — keeps the hero scannable when the description is long. */
+  get heroDescription(): string {
+    const text = this.business.description || '';
+    return text.length > 230 ? text.slice(0, 230).trimEnd() + '…' : text;
+  }
+
+  /** The business' "services" are rendered as today's offerings / menu picks. */
+  get displayMenu(): string[] {
+    return this.business.services?.length ? this.business.services : this.getDefaultMenu();
+  }
+
+  get hasImages(): boolean {
+    return this.galleryImages.length > 0;
   }
 
   ngOnInit(): void {
@@ -121,6 +172,20 @@ export class Salon02Component implements OnInit, OnDestroy {
     }
   }
 
+  @HostListener('document:keydown.arrowleft')
+  onArrowLeft(): void {
+    if (this.lightboxOpen) {
+      this.prevLightbox();
+    }
+  }
+
+  @HostListener('document:keydown.arrowright')
+  onArrowRight(): void {
+    if (this.lightboxOpen) {
+      this.nextLightbox();
+    }
+  }
+
   private onScroll = (): void => {
     this.scrollY.set(window.scrollY);
   };
@@ -132,7 +197,7 @@ export class Salon02Component implements OnInit, OnDestroy {
   scrollTo(id: string): void {
     const el = document.getElementById(id);
     if (el) {
-      const header = document.querySelector('.salon02-header');
+      const header = document.querySelector('.restaurant02-header');
       const headerHeight = header?.clientHeight || 0;
       const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
       window.scrollTo({ top, behavior: 'smooth' });
@@ -150,6 +215,10 @@ export class Salon02Component implements OnInit, OnDestroy {
 
   onHeroImageError(): void {
     this.heroImageError = true;
+  }
+
+  onHeroImage2Error(): void {
+    this.heroImage2Error = true;
   }
 
   onGalleryImageError(index: number): void {
@@ -179,6 +248,20 @@ export class Salon02Component implements OnInit, OnDestroy {
     }
   }
 
+  serviceIcon(index: number): string {
+    const icons = Restaurant02Component.SERVICE_ICONS;
+    return icons[index % icons.length];
+  }
+
+  /**
+   * Asymmetric editorial rhythm for the gallery grid.
+   * Period of 4: wide, standard, tall, standard.
+   */
+  galleryClass(index: number): string {
+    const pattern = ['wide', '', 'tall', ''];
+    return pattern[index % pattern.length];
+  }
+
   private normalizePhoneForWhatsApp(phone: string): string {
     const digits = phone.replace(/[^0-9]/g, '');
     if (digits.length === 10 && /^[6-9]/.test(digits)) {
@@ -202,10 +285,10 @@ export class Salon02Component implements OnInit, OnDestroy {
   }
 
   private getDefaultDescription(): string {
-    return 'We are a premium beauty salon dedicated to enhancing your natural beauty. Our expert stylists use the finest products and latest techniques to deliver an exceptional experience every time you visit.';
+    return 'A warm, welcoming café built around great coffee, honest food and a space where you actually want to stay a while.';
   }
 
-  private getDefaultServices(): string[] {
-    return ['Haircut', 'Hair Styling', 'Hair Coloring', 'Facial', 'Bridal Makeup'];
+  private getDefaultMenu(): string[] {
+    return ['House Blend Coffee', 'Brunch Plates', 'Fresh Salads & Bowls', 'Artisan Pastries', 'Homemade Desserts'];
   }
 }

@@ -6,19 +6,20 @@ import {
   buildThemeCss,
   themeOptionClasses,
 } from '../../themes/theme.registry';
+import { getCategoryDisplayName } from '../../categories/category.registry';
 
 @Component({
-  selector: 'app-salon02',
+  selector: 'app-restaurant01',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './salon02.component.html',
-  styleUrl: './salon02.component.css',
+  templateUrl: './restaurant01.component.html',
+  styleUrl: './restaurant01.component.css',
   host: {
     '[style]': 'themeCss',
     '[class]': 'themeClasses',
   },
 })
-export class Salon02Component implements OnInit, OnDestroy {
+export class Restaurant01Component implements OnInit, OnDestroy {
   @Input({ required: true }) business!: Business;
   currentYear = new Date().getFullYear();
 
@@ -42,12 +43,18 @@ export class Salon02Component implements OnInit, OnDestroy {
   lightboxOpen = false;
   lightboxIndex = 0;
   heroImageError = false;
+  aboutImageError = false;
   galleryImageErrors: boolean[] = [];
   private scrollY = signal(0);
   private document = inject(DOCUMENT);
 
   get heroImage(): string {
     return this.business.images?.[0] || '';
+  }
+
+  /** Prefer a secondary image for the About panel so it differs from the hero. */
+  get aboutImage(): string {
+    return this.business.images?.[1] || this.heroImage;
   }
 
   get galleryImages(): string[] {
@@ -73,20 +80,46 @@ export class Salon02Component implements OnInit, OnDestroy {
     return !!(this.business.phone || this.business.whatsapp || this.business.address);
   }
 
+  get hasWhatsApp(): boolean {
+    return !!this.business.whatsapp;
+  }
+
+  get hasPhone(): boolean {
+    return !!this.business.phone;
+  }
+
+  /** Primary conversion target: WhatsApp when available, otherwise a call. */
+  get primaryCtaUrl(): string {
+    return this.hasWhatsApp ? this.whatsappUrl : this.hasPhone ? this.phoneUrl : '';
+  }
+
+  get primaryCtaLabel(): string {
+    return this.hasWhatsApp ? 'Reserve a Table' : 'Call to Reserve';
+  }
+
+  get categoryLabel(): string {
+    return getCategoryDisplayName(this.business.category, 'Restaurant & Dining');
+  }
+
   get isScrolled(): boolean {
     return this.scrollY() > 20;
   }
 
   get showMobileCta(): boolean {
-    return window.innerWidth <= 768 && this.scrollY() > 100;
+    return window.innerWidth <= 768 && this.scrollY() > 120;
   }
 
   get displayDescription(): string {
     return this.business.description || this.getDefaultDescription();
   }
 
-  get displayServices(): string[] {
-    return this.business.services?.length ? this.business.services : this.getDefaultServices();
+  /** The business' "services" are used as Menu Highlights / Signature Offerings. */
+  get displayMenu(): string[] {
+    return this.business.services?.length ? this.business.services : this.getDefaultMenu();
+  }
+
+  get hasImages(): boolean {
+    return this.galleryImages.length > 0;
   }
 
   ngOnInit(): void {
@@ -121,6 +154,20 @@ export class Salon02Component implements OnInit, OnDestroy {
     }
   }
 
+  @HostListener('document:keydown.arrowleft')
+  onArrowLeft(): void {
+    if (this.lightboxOpen) {
+      this.prevLightbox();
+    }
+  }
+
+  @HostListener('document:keydown.arrowright')
+  onArrowRight(): void {
+    if (this.lightboxOpen) {
+      this.nextLightbox();
+    }
+  }
+
   private onScroll = (): void => {
     this.scrollY.set(window.scrollY);
   };
@@ -132,7 +179,7 @@ export class Salon02Component implements OnInit, OnDestroy {
   scrollTo(id: string): void {
     const el = document.getElementById(id);
     if (el) {
-      const header = document.querySelector('.salon02-header');
+      const header = document.querySelector('.restaurant01-header');
       const headerHeight = header?.clientHeight || 0;
       const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
       window.scrollTo({ top, behavior: 'smooth' });
@@ -150,6 +197,10 @@ export class Salon02Component implements OnInit, OnDestroy {
 
   onHeroImageError(): void {
     this.heroImageError = true;
+  }
+
+  onAboutImageError(): void {
+    this.aboutImageError = true;
   }
 
   onGalleryImageError(index: number): void {
@@ -202,10 +253,19 @@ export class Salon02Component implements OnInit, OnDestroy {
   }
 
   private getDefaultDescription(): string {
-    return 'We are a premium beauty salon dedicated to enhancing your natural beauty. Our expert stylists use the finest products and latest techniques to deliver an exceptional experience every time you visit.';
+    return 'We are an elegant dining destination devoted to seasonal ingredients, considered cooking and warm, attentive hospitality — an experience worth lingering over.';
   }
 
-  private getDefaultServices(): string[] {
-    return ['Haircut', 'Hair Styling', 'Hair Coloring', 'Facial', 'Bridal Makeup'];
+  private getDefaultMenu(): string[] {
+    return ['Chef’s Tasting Menu', 'Seasonal Specials', 'Grilled Prime Cuts', 'Fresh Catch of the Day', 'Artisan Desserts'];
+  }
+
+  /**
+   * Asymmetric editorial rhythm for the gallery grid.
+   * Period of 4: tall, wide, standard, standard.
+   */
+  galleryClass(index: number): string {
+    const pattern = ['tall', 'wide', '', ''];
+    return pattern[index % pattern.length];
   }
 }

@@ -1,11 +1,32 @@
 import { Type } from '@angular/core';
 import { Business } from '../../../models/business.model';
+import {
+  DEFAULT_THEME_ID,
+  ThemePreset,
+  getThemeById,
+  getThemes,
+} from '../themes/theme.registry';
 
 export interface TemplateMetadata {
   id: string;
   name: string;
-  category: string;
+  /** Category registry id this template belongs to (case-insensitive, e.g.
+   *  "salon"). Display names come from the category registry. */
+  categoryId: string;
   description: string;
+  /** Visual mood of the template — used by generic pickers to style
+   *  preview thumbnails without hardcoding per-template logic. */
+  appearance?: 'light' | 'dark';
+  /** Optional static preview asset (e.g. a pre-made screenshot). When
+   *  absent, pickers generate a live thumbnail by rendering the template
+   *  with the business' real data via the shared screenshot pipeline. */
+  thumbnail?: string;
+  /** Optional tags for future search/filtering (style, mood, layout, …). */
+  tags?: string[];
+  /** Theme used when the business has no explicit themeId. */
+  defaultThemeId?: string;
+  /** Theme ids this template supports; defaults to all registered themes. */
+  supportedThemes?: string[];
   supported: boolean;
   component: Type<unknown>;
 }
@@ -13,17 +34,53 @@ export interface TemplateMetadata {
 export const TEMPLATE_REGISTRY: Record<string, TemplateMetadata> = {
   'salon-01': {
     id: 'salon-01',
-    name: 'Salon 01',
-    category: 'Salon',
-    description: 'Elegant modern salon website',
+    name: 'Luxury Editorial',
+    categoryId: 'salon',
+    tags: ['editorial', 'luxury', 'serif'],
+    appearance: 'light',
+    description:
+      'A refined ivory and charcoal editorial layout with arch imagery, serif display type, champagne accents and a masonry gallery.',
+    defaultThemeId: 'classic-cream',
+    supportedThemes: ['classic-cream', 'black-gold', 'rose-ivory', 'earthy-beige'],
     supported: true,
     component: null as unknown as Type<unknown>,
   },
   'salon-02': {
     id: 'salon-02',
-    name: 'Salon 02',
-    category: 'Salon',
-    description: 'Boutique luxe dark salon website',
+    name: 'Modern Boutique',
+    categoryId: 'salon',
+    tags: ['modern', 'bold', 'dark'],
+    appearance: 'dark',
+    description:
+      'A dark, gallery-forward boutique design with bold typography, dramatic contrast and a contemporary edge.',
+    defaultThemeId: 'black-gold',
+    supportedThemes: ['classic-cream', 'black-gold', 'rose-ivory', 'earthy-beige'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
+  'restaurant-01': {
+    id: 'restaurant-01',
+    name: 'Fine Dining',
+    categoryId: 'restaurant',
+    tags: ['fine-dining', 'editorial', 'elegant', 'serif', 'dark'],
+    appearance: 'dark',
+    description:
+      'A dark, image-driven editorial design with candlelit elegance — large food photography, champagne gold and a refined table-side feel.',
+    defaultThemeId: 'midnight',
+    supportedThemes: ['midnight', 'ivory-gold', 'burgundy'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
+  'restaurant-02': {
+    id: 'restaurant-02',
+    name: 'Modern Café',
+    categoryId: 'restaurant',
+    tags: ['cafe', 'modern', 'warm', 'bold'],
+    appearance: 'light',
+    description:
+      'A warm, contemporary café layout with bold modern type, friendly cards and a welcoming, editorial food-first feel.',
+    defaultThemeId: 'warm-minimal',
+    supportedThemes: ['warm-minimal', 'earthy', 'contemporary'],
     supported: true,
     component: null as unknown as Type<unknown>,
   },
@@ -50,7 +107,7 @@ export function getSupportedTemplates(): TemplateMetadata[] {
 
 export function getTemplatesForCategory(category: string): TemplateMetadata[] {
   return Object.values(TEMPLATE_REGISTRY).filter(
-    (t) => t.category.toLowerCase() === category.toLowerCase() && t.supported
+    (t) => t.categoryId.toLowerCase() === category.toLowerCase() && t.supported
   );
 }
 
@@ -69,7 +126,21 @@ export function getTemplateDisplayName(templateId: string): string {
   return metadata?.name ?? templateId;
 }
 
+/** Theme a business with this template falls back to when no themeId is set. */
+export function getDefaultThemeForTemplate(templateId: string): string {
+  return TEMPLATE_REGISTRY[templateId]?.defaultThemeId ?? DEFAULT_THEME_ID;
+}
+
+/** Themes a template supports (defaults to every registered theme). */
+export function getSupportedThemesForTemplate(templateId: string): ThemePreset[] {
+  const metadata = TEMPLATE_REGISTRY[templateId];
+  if (!metadata?.supportedThemes) return getThemes();
+  return metadata.supportedThemes
+    .map((id) => getThemeById(id))
+    .filter((t): t is ThemePreset => !!t);
+}
+
 export function getTemplateCategory(templateId: string): string {
   const metadata = TEMPLATE_REGISTRY[templateId];
-  return metadata?.category ?? 'Unknown';
+  return metadata?.categoryId ?? '';
 }

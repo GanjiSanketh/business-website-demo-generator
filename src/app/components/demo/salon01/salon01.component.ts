@@ -1,6 +1,11 @@
 import { Component, Input, HostListener, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Business } from '../../../models/business.model';
+import {
+  ThemeConfig,
+  buildThemeCss,
+  themeOptionClasses,
+} from '../themes/theme.registry';
 
 @Component({
   selector: 'app-salon01',
@@ -8,21 +13,61 @@ import { Business } from '../../../models/business.model';
   imports: [CommonModule],
   templateUrl: './salon01.component.html',
   styleUrl: './salon01.component.css',
+  host: {
+    '[style]': 'themeCss',
+    '[class]': 'themeClasses',
+  },
 })
 export class Salon01Component implements OnInit, OnDestroy {
   @Input({ required: true }) business!: Business;
   currentYear = new Date().getFullYear();
 
+  /** Theme applied as inline CSS vars + option classes on the host. */
+  private _theme: ThemeConfig | null = null;
+  protected themeCss = '';
+  protected themeClasses = '';
+
+  @Input()
+  set theme(value: ThemeConfig | null | undefined) {
+    this._theme = value ?? null;
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    this.themeCss = this._theme ? buildThemeCss(this._theme) : '';
+    this.themeClasses = this._theme ? themeOptionClasses(this._theme) : '';
+  }
+
   mobileMenuOpen = false;
   lightboxOpen = false;
   lightboxIndex = 0;
   heroImageError = false;
+  aboutImageError = false;
   galleryImageErrors: boolean[] = [];
+  activeSection = 'home';
   private scrollY = signal(0);
   private document = inject(DOCUMENT);
 
+  private static readonly SECTION_IDS = ['home', 'about', 'services', 'gallery', 'contact'];
+
+  private static readonly SERVICE_ICONS = [
+    'bi-scissors',
+    'bi-brush',
+    'bi-magic',
+    'bi-gem',
+    'bi-droplet-half',
+    'bi-stars',
+    'bi-flower1',
+    'bi-handbag',
+  ];
+
   get heroImage(): string {
     return this.business.images?.[0] || '';
+  }
+
+  /** Prefer a secondary image for the About panel so it differs from the hero. */
+  get aboutImage(): string {
+    return this.business.images?.[1] || this.heroImage;
   }
 
   get galleryImages(): string[] {
@@ -83,10 +128,33 @@ export class Salon01Component implements OnInit, OnDestroy {
 
   private onScroll = (): void => {
     this.scrollY.set(window.scrollY);
+    this.updateActiveSection();
   };
 
   private updateScrollY(): void {
     this.scrollY.set(window.scrollY);
+    this.updateActiveSection();
+  }
+
+  /**
+   * Scroll-spy: highlight the nav link for the section currently in view.
+   * Only ever called from the scroll handler (browser-only).
+   */
+  private updateActiveSection(): void {
+    const scrollPos = window.scrollY + window.innerHeight * 0.3;
+    const header = document.querySelector('.salon-header');
+    const headerHeight = header?.clientHeight || 0;
+
+    let current = Salon01Component.SECTION_IDS[0];
+    for (const id of Salon01Component.SECTION_IDS) {
+      const el = document.getElementById(id);
+      if (el && el.offsetTop - headerHeight <= scrollPos) {
+        current = id;
+      }
+    }
+    if (current !== this.activeSection) {
+      this.activeSection = current;
+    }
   }
 
   @HostListener('window:resize')
@@ -101,6 +169,20 @@ export class Salon01Component implements OnInit, OnDestroy {
     if (this.lightboxOpen) {
       this.lightboxOpen = false;
       document.body.style.overflow = '';
+    }
+  }
+
+  @HostListener('document:keydown.arrowleft')
+  onArrowLeft(): void {
+    if (this.lightboxOpen) {
+      this.prevLightbox();
+    }
+  }
+
+  @HostListener('document:keydown.arrowright')
+  onArrowRight(): void {
+    if (this.lightboxOpen) {
+      this.nextLightbox();
     }
   }
 
@@ -125,6 +207,10 @@ export class Salon01Component implements OnInit, OnDestroy {
 
   onHeroImageError(): void {
     this.heroImageError = true;
+  }
+
+  onAboutImageError(): void {
+    this.aboutImageError = true;
   }
 
   onGalleryImageError(index: number): void {
@@ -182,5 +268,20 @@ export class Salon01Component implements OnInit, OnDestroy {
 
   private getDefaultServices(): string[] {
     return ['Haircut', 'Hair Styling', 'Hair Coloring', 'Facial', 'Bridal Makeup'];
+  }
+
+  /** Rotate through elegant salon icons so the grid never repeats visually. */
+  serviceIcon(index: number): string {
+    const icons = Salon01Component.SERVICE_ICONS;
+    return icons[index % icons.length];
+  }
+
+  /**
+   * Asymmetric editorial masonry pattern for the gallery grid.
+   * Period of 4: tall, standard, wide, standard.
+   */
+  galleryClass(index: number): string {
+    const pattern = ['tall', '', 'wide', ''];
+    return pattern[index % pattern.length];
   }
 }
