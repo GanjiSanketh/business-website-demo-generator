@@ -1071,25 +1071,93 @@
 
 .service-item {
   display: flex;
+  align-items: flex-start;
   gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--admin-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.service-item input {
+.service-item:focus-within {
+  border-color: var(--admin-gold);
+  box-shadow: 0 0 0 3px var(--admin-gold-glow);
+}
+
+.service-fields {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.service-name-input,
+.service-desc-input {
+  width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-family: var(--font-sans);
   outline: none;
-  background: var(--admin-surface-2);
+  background: var(--admin-surface);
   color: var(--color-text);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-sizing: border-box;
 }
 
-.service-item input:focus {
+.service-name-input:focus,
+.service-desc-input:focus {
   border-color: var(--admin-gold);
   box-shadow: 0 0 0 3px var(--admin-gold-glow);
+}
+
+.service-desc-input {
+  resize: vertical;
+  min-height: 56px;
+  line-height: 1.4;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.service-desc-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.service-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-move {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--admin-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.btn-move:hover:not(:disabled) {
+  border-color: var(--admin-gold-muted);
+  color: var(--admin-gold-bright);
+  background: var(--admin-gold-glow);
+}
+
+.btn-move:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .btn-remove {
@@ -1106,6 +1174,7 @@
   font-size: 0.75rem;
   flex-shrink: 0;
   transition: all var(--transition-fast);
+  margin-top: auto;
 }
 
 .btn-remove:hover {
@@ -1133,6 +1202,13 @@
 .btn-add-service:hover {
   border-color: var(--admin-gold-muted);
   color: var(--admin-gold-bright);
+}
+
+.empty-hint {
+  font-style: italic;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: var(--space-md);
 }
 
 /* ============ STATUS ============ */
@@ -1524,6 +1600,81 @@
   max-height: 100px;
   object-fit: contain;
   border-radius: var(--radius-sm);
+}
+
+/* Logo preview wrapper with actions */
+.logo-preview-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 220px;
+}
+
+.logo-preview-wrapper .logo-preview {
+  max-width: 220px;
+  max-height: 140px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.logo-actions {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  transform: translateX(-50%) translateY(4px);
+}
+
+.logo-preview-wrapper:hover .logo-actions {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.logo-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-replace {
+  background: var(--admin-gold);
+  border-color: var(--admin-gold);
+  color: var(--admin-bg);
+}
+
+.btn-replace:hover {
+  background: var(--admin-gold-bright);
+  border-color: var(--admin-gold-bright);
+}
+
+.logo-actions .btn-remove {
+  width: auto;
+  height: auto;
+  background: var(--admin-surface-2);
+  color: var(--color-text-tertiary);
+}
+
+.logo-actions .btn-remove:hover {
+  background: var(--color-error-bg);
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* ============ IMAGES GRID ============ */

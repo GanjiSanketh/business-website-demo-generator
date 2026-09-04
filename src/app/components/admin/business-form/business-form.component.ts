@@ -25,7 +25,7 @@ import { ActivatedRoute, Router, RouterModule, CanDeactivate } from '@angular/ro
 import { BusinessService } from '../../../services/business.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotService } from '../../../services/screenshot.service';
-import { Business } from '../../../models/business.model';
+import { Business, ServiceItem, normalizeServices, servicesToNames } from '../../../models/business.model';
 import {
   getDefaultTemplateForCategory,
   getDefaultThemeForTemplate,
@@ -552,8 +552,21 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     return this.form.get('services') as FormArray;
   }
 
+  private createServiceGroup(service?: ServiceItem): FormGroup {
+    return this.fb.group({
+      name: [service?.name || '', Validators.required],
+      description: [service?.description || ''],
+    });
+  }
+
   addService(): void {
-    this.services.push(this.fb.control(''));
+    this.services.push(this.createServiceGroup());
+    // Focus the new name input after a tick
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.service-item .service-name-input');
+      const last = inputs[inputs.length - 1] as HTMLInputElement;
+      last?.focus();
+    }, 0);
   }
 
   addServiceOnEnter(event: Event): void {
@@ -562,19 +575,43 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       event.preventDefault();
       const input = event.target as HTMLInputElement;
       if (input.value.trim()) {
-        this.services.push(this.fb.control(''));
-        // Focus the new input after a tick
-        setTimeout(() => {
-          const inputs = document.querySelectorAll('.service-item input');
-          const last = inputs[inputs.length - 1] as HTMLInputElement;
-          last?.focus();
-        }, 0);
+        this.addService();
       }
     }
   }
 
   removeService(index: number): void {
     this.services.removeAt(index);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveServiceUp(index: number): void {
+    if (index <= 0) return;
+    const control = this.services.at(index);
+    this.services.removeAt(index);
+    this.services.insert(index - 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveServiceDown(index: number): void {
+    if (index >= this.services.length - 1) return;
+    const control = this.services.at(index);
+    this.services.removeAt(index);
+    this.services.insert(index + 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  getServiceNameControl(index: number) {
+    return this.services.at(index).get('name');
+  }
+
+  getServiceDescriptionControl(index: number) {
+    return this.services.at(index).get('description');
+  }
+
+  /** Typed accessor for service FormGroups in templates. */
+  get serviceGroups(): FormGroup[] {
+    return this.services.controls as FormGroup[];
   }
 
   private async loadBusiness(id: string): Promise<void> {
@@ -621,7 +658,8 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         this.imagePreviews.set([...business.images]);
       }
       if (business.services) {
-        business.services.forEach((s) => this.services.push(this.fb.control(s)));
+        const normalized = normalizeServices(business.services);
+        normalized.forEach((s) => this.services.push(this.createServiceGroup(s)));
       }
 
       // Set demo URL
@@ -878,7 +916,9 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         phone: formValue.phone || '',
         whatsapp: formValue.whatsapp || '',
         address: formValue.address || '',
-        services: formValue.services?.filter((s: string) => s.trim()) || [],
+        services: formValue.services
+          ?.filter((s: ServiceItem) => s?.name?.trim())
+          ?.map((s: ServiceItem) => ({ name: s.name.trim(), description: s.description?.trim() || '' })) || [],
         slug: finalSlug,
         status: formStatus,
         themeId: formValue.themeId || undefined,
@@ -1030,6 +1070,42 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   isFieldInvalid(field: string): boolean {
     const ctrl = this.form.get(field);
     return !!(ctrl && ctrl.invalid && (ctrl.dirty || ctrl.touched));
+  }
+
+  /** Template-aware labels for Content panel (Services vs Menu/Offerings). */
+  contentLabel(type: 'services' | 'gallery'): string {
+    const category = normalizeCategoryKey(this.form?.get('category')?.value);
+    if (type === 'services') {
+      // Restaurant templates use "Menu" / "Offerings"
+      if (category === 'restaurant') return 'Menu / Offerings';
+      // Default generic label
+      return 'Services / Offerings';
+    }
+    if (type === 'gallery') {
+      return 'Gallery';
+    }
+    return '';
+  }
+
+  /** Confirm before removing an image from gallery. */
+  confirmRemoveImage(index: number): void {
+    if (confirm('Remove this image from the gallery? This cannot be undone.')) {
+      this.removeImage(index);
+    }
+  }
+
+  /** Confirm before removing the logo. */
+  confirmRemoveLogo(): void {
+    if (confirm('Remove the current logo? This cannot be undone.')) {
+      this.removeLogo();
+    }
+  }
+
+  /** Remove the current logo. */
+  removeLogo(): void {
+    this.logoPreview.set('');
+    this.logoFile.set(null);
+    this.markUnsavedBuilderChanges();
   }
 
   // ============ STEP FLOW ============
@@ -1427,7 +1503,9 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       whatsapp: value.whatsapp || '',
       address: value.address || '',
       services:
-        value.services?.filter((s: string) => s.trim()) || [],
+        value.services
+          ?.filter((s: ServiceItem) => s?.name?.trim())
+          ?.map((s: ServiceItem) => ({ name: s.name.trim(), description: s.description?.trim() || '' })) || [],
       slug: this.businessService.generateSlug(
         value.businessName?.trim() || 'business'
       ),

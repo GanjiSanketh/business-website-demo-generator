@@ -1,6 +1,7 @@
 import { Component, Input, HostListener, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Business } from '../../../../models/business.model';
+import { normalizeServices } from '../../../../models/business.model';
 import {
   ThemeConfig,
   buildThemeCss,
@@ -115,7 +116,8 @@ export class Restaurant01Component implements OnInit, OnDestroy {
 
   /** The business' "services" are used as Menu Highlights / Signature Offerings. */
   get displayMenu(): string[] {
-    return this.business.services?.length ? this.business.services : this.getDefaultMenu();
+    const normalized = normalizeServices(this.business.services);
+    return normalized.length ? normalized.map(s => s.name) : this.getDefaultMenu();
   }
 
   get hasImages(): boolean {

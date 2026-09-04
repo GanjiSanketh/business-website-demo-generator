@@ -1,6 +1,7 @@
 import { Component, Input, HostListener, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Business } from '../../../../models/business.model';
+import { normalizeServices } from '../../../../models/business.model';
 import {
   ThemeConfig,
   buildThemeCss,
@@ -86,7 +87,8 @@ export class Salon02Component implements OnInit, OnDestroy {
   }
 
   get displayServices(): string[] {
-    return this.business.services?.length ? this.business.services : this.getDefaultServices();
+    const normalized = normalizeServices(this.business.services);
+    return normalized.length ? normalized.map(s => s.name) : this.getDefaultServices();
   }
 
   ngOnInit(): void {

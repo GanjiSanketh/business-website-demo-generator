@@ -589,55 +589,95 @@
                     <!-- ════ CONTENT PANEL (services + photos) ════ -->
                     <div class="b-panel" id="b-panel-content" role="tabpanel" aria-labelledby="b-tab-content">
                       <div class="b-panel-head">
-                        <h2>Services & Photos</h2>
+                        <h2>Content & Media</h2>
                         <p>
                           Services appear as offerings on your website; photos
                           power the hero, about section and gallery.
                         </p>
                       </div>
 
-                      <div class="b-block-title">Services / Offerings</div>
+                      <!-- SERVICES / OFFERINGS -->
+                      <div class="b-block-title">{{ contentLabel('services') }}</div>
                       <div class="services-list">
-                        @for (service of services.controls; track $index; let i = $index) {
-                          <div class="service-item">
-                            <input
-                              type="text"
-                              [formControlName]="i"
-                              placeholder="e.g. Haircut, Styling..."
-                              (keydown.enter)="addServiceOnEnter($event)"
-                            />
-                            <button
-                              type="button"
-                              class="btn-remove"
-                              (click)="removeService(i)"
-                              [attr.aria-label]="'Remove service ' + (i + 1)"
-                            >
-                              <i class="bi bi-x-lg"></i>
-                            </button>
+                        @for (service of serviceGroups; track $index; let i = $index) {
+                          <div class="service-item" [formGroup]="service">
+                            <div class="service-fields">
+                              <input
+                                type="text"
+                                class="service-name-input"
+                                formControlName="name"
+                                placeholder="Service name (e.g. Haircut, Styling)"
+                                [attr.aria-label]="'Service ' + (i + 1) + ' name'"
+                                (keydown.enter)="addServiceOnEnter($event)"
+                              />
+                              <textarea
+                                class="service-desc-input"
+                                formControlName="description"
+                                placeholder="Description (optional)"
+                                rows="2"
+                                [attr.aria-label]="'Service ' + (i + 1) + ' description'"
+                              ></textarea>
+                            </div>
+                            <div class="service-actions" role="group" [attr.aria-label]="'Service ' + (i + 1) + ' actions'">
+                              <button
+                                type="button"
+                                class="btn-move"
+                                (click)="moveServiceUp(i)"
+                                [disabled]="i === 0"
+                                [attr.aria-label]="'Move service ' + (i + 1) + ' up'"
+                                title="Move up"
+                              >
+                                <i class="bi bi-chevron-up"></i>
+                              </button>
+                              <button
+                                type="button"
+                                class="btn-move"
+                                (click)="moveServiceDown(i)"
+                                [disabled]="i === services.length - 1"
+                                [attr.aria-label]="'Move service ' + (i + 1) + ' down'"
+                                title="Move down"
+                              >
+                                <i class="bi bi-chevron-down"></i>
+                              </button>
+                              <button
+                                type="button"
+                                class="btn-remove"
+                                (click)="removeService(i)"
+                                [attr.aria-label]="'Remove service ' + (i + 1)"
+                                title="Remove service"
+                              >
+                                <i class="bi bi-x-lg"></i>
+                              </button>
+                            </div>
                           </div>
                         }
                       </div>
+                      @if (services.length === 0) {
+                        <p class="b-field-hint empty-hint">No services added yet. Click "Add service" to get started.</p>
+                      }
                       <button type="button" class="btn-add-service" (click)="addService()">
                         <i class="bi bi-plus-lg"></i>
                         Add service
                       </button>
 
-                      <div class="b-block-title b-block-title-gap">Business Photos</div>
+                      <!-- GALLERY -->
+                      <div class="b-block-title b-block-title-gap">{{ contentLabel('gallery') }}</div>
                       <p class="b-field-hint">
-                        The first photo becomes the cover/hero image.
+                        The first photo becomes the cover/hero image. Drag to reorder (first = hero).
                       </p>
                       <div class="images-grid b-images-grid">
                         @for (preview of imagePreviews(); track $index; let i = $index) {
                           <div class="image-item" [class.cover]="i === 0">
-                            <img [src]="preview" alt="Image {{ i + 1 }}" />
+                            <img [src]="preview" [alt]="'Gallery image ' + (i + 1)" loading="lazy" />
                             @if (i === 0) {
-                              <span class="cover-badge">Cover</span>
+                              <span class="cover-badge" aria-label="Cover image">Cover</span>
                             } @else {
                               <button
                                 type="button"
                                 class="btn-cover"
                                 (click)="setAsCover(i)"
-                                title="Set as cover image"
+                                [attr.aria-label]="'Set image ' + (i + 1) + ' as cover/hero'"
+                                title="Set as cover/hero image"
                               >
                                 <i class="bi bi-star"></i>
                               </button>
@@ -645,8 +685,9 @@
                             <button
                               type="button"
                               class="btn-remove-image"
-                              (click)="removeImage(i)"
-                              [attr.aria-label]="'Remove photo ' + (i + 1)"
+                              (click)="confirmRemoveImage(i)"
+                              [attr.aria-label]="'Remove image ' + (i + 1)"
+                              title="Remove image"
                             >
                               <i class="bi bi-x-lg"></i>
                             </button>
@@ -656,13 +697,14 @@
                           type="button"
                           class="image-upload-btn"
                           (click)="bImagesInput.click()"
+                          [attr.aria-label]="'Add photos to gallery'"
                         >
                           <i class="bi bi-plus-lg"></i>
                           <span>Add photos</span>
                         </button>
                       </div>
                       <p class="b-field-hint">
-                        Drag & drop photos here or click to browse (up to 5MB each).
+                        Drag & drop photos here or click to browse (up to 5MB each, JPEG/PNG/WebP).
                       </p>
                       <input
                         #bImagesInput
@@ -670,6 +712,59 @@
                         accept="image/*"
                         multiple
                         (change)="onImagesChange($event)"
+                        hidden
+                      />
+
+                      <!-- LOGO -->
+                      <div class="b-block-title b-block-title-gap">Logo</div>
+                      <p class="b-field-hint">Shown in the website header and footer.</p>
+                      <div
+                        class="upload-area b-logo-area"
+                        [class.drag-over]="dragOverLogo()"
+                        (click)="bLogoInput.click()"
+                        (dragover)="onLogoDragOver($event)"
+                        (dragleave)="onLogoDragLeave($event)"
+                        (drop)="onLogoDrop($event)"
+                      >
+                        @if (logoPreview()) {
+                          <div class="logo-preview-wrapper">
+                            <img [src]="logoPreview()" alt="Current logo preview" class="logo-preview" />
+                            <div class="logo-actions">
+                              <button
+                                type="button"
+                                class="btn-replace"
+                                (click)="$event.stopPropagation(); bLogoInput.click()"
+                                [attr.aria-label]="'Replace logo'"
+                                title="Replace logo"
+                              >
+                                <i class="bi bi-arrow-repeat"></i>
+                                <span>Replace</span>
+                              </button>
+                              <button
+                                type="button"
+                                class="btn-remove"
+                                (click)="confirmRemoveLogo()"
+                                [attr.aria-label]="'Remove logo'"
+                                title="Remove logo"
+                              >
+                                <i class="bi bi-x-lg"></i>
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </div>
+                        } @else {
+                          <div class="upload-placeholder">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                            <p>Click to upload logo</p>
+                            <span>PNG, JPG, WebP up to 5MB</span>
+                          </div>
+                        }
+                      </div>
+                      <input
+                        #bLogoInput
+                        type="file"
+                        accept="image/*"
+                        (change)="onLogoChange($event)"
                         hidden
                       />
                     </div>
@@ -991,36 +1086,73 @@
           <div class="form-card">
             <h2 class="card-title">
               <i class="bi bi-list-check"></i>
-              Services
+              {{ contentLabel('services') }}
             </h2>
 
             <div class="services-list">
-              @for (service of services.controls; track $index; let i = $index) {
-                <div class="service-item">
-                  <input
-                    type="text"
-                    [formControlName]="i"
-                    placeholder="e.g. Haircut, Styling..."
-                    (keydown.enter)="addServiceOnEnter($event)"
-                  />
-                  <button
-                    type="button"
-                    class="btn-remove"
-                    (click)="removeService(i)"
-                  >
-                    <i class="bi bi-x-lg"></i>
-                  </button>
+              @for (service of serviceGroups; track $index; let i = $index) {
+                <div class="service-item" [formGroup]="service">
+                  <div class="service-fields">
+                    <input
+                      type="text"
+                      class="service-name-input"
+                      formControlName="name"
+                      placeholder="Service name (e.g. Haircut, Styling)"
+                      [attr.aria-label]="'Service ' + (i + 1) + ' name'"
+                      (keydown.enter)="addServiceOnEnter($event)"
+                    />
+                    <textarea
+                      class="service-desc-input"
+                      formControlName="description"
+                      placeholder="Description (optional)"
+                      rows="2"
+                      [attr.aria-label]="'Service ' + (i + 1) + ' description'"
+                    ></textarea>
+                  </div>
+                  <div class="service-actions" role="group" [attr.aria-label]="'Service ' + (i + 1) + ' actions'">
+                    <button
+                      type="button"
+                      class="btn-move"
+                      (click)="moveServiceUp(i)"
+                      [disabled]="i === 0"
+                      [attr.aria-label]="'Move service ' + (i + 1) + ' up'"
+                      title="Move up"
+                    >
+                      <i class="bi bi-chevron-up"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-move"
+                      (click)="moveServiceDown(i)"
+                      [disabled]="i === services.length - 1"
+                      [attr.aria-label]="'Move service ' + (i + 1) + ' down'"
+                      title="Move down"
+                    >
+                      <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-remove"
+                      (click)="removeService(i)"
+                      [attr.aria-label]="'Remove service ' + (i + 1)"
+                      title="Remove service"
+                    >
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
                 </div>
               }
             </div>
-
+            @if (services.length === 0) {
+              <p class="b-field-hint empty-hint">No services added yet. Click "Add service" to get started.</p>
+            }
             <button
               type="button"
               class="btn-add-service"
               (click)="addService()"
             >
               <i class="bi bi-plus-lg"></i>
-              Add Service
+              Add service
             </button>
           </div>
         </div>
@@ -1475,14 +1607,14 @@
                 </ul>
 
                 <div class="review-services">
-                  <span class="review-label">Services</span>
+                  <span class="review-label">{{ contentLabel('services') }}</span>
                   @if (services.length === 0) {
                     <p class="review-muted">No services added yet.</p>
                   } @else {
                     <div class="review-service-chips">
                       @for (s of services.controls; track $index) {
-                        @if (s.value?.trim()) {
-                          <span class="service-chip">{{ s.value }}</span>
+                        @if (s.get('name')?.value?.trim()) {
+                          <span class="service-chip" [title]="s.get('description')?.value || ''">{{ s.get('name')?.value }}</span>
                         }
                       }
                     </div>

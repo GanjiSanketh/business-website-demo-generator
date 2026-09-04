@@ -1,6 +1,11 @@
 import { Timestamp } from 'firebase/firestore';
 import { ThemeOptions } from '../components/demo/themes/theme.registry';
 
+export interface ServiceItem {
+  name: string;
+  description: string;
+}
+
 export interface Business {
   id?: string;
   businessName: string;
@@ -13,7 +18,7 @@ export interface Business {
   address: string;
   logoUrl?: string;
   images?: string[];
-  services?: string[];
+  services?: ServiceItem[];
   slug: string;
   status: 'draft' | 'published';
   /** Selected theme preset id; resolved against the theme registry with a
@@ -23,4 +28,18 @@ export interface Business {
   themeOptions?: ThemeOptions;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+/** Normalize services to ServiceItem[] for templates (backward-compatible). */
+export function normalizeServices(services?: string[] | ServiceItem[]): ServiceItem[] {
+  if (!services?.length) return [];
+  return services.map((s) =>
+    typeof s === 'string' ? { name: s, description: '' } : { name: s.name || '', description: s.description || '' }
+  );
+}
+
+/** Extract service names for backward-compatible storage (string[]). */
+export function servicesToNames(services?: ServiceItem[]): string[] {
+  if (!services?.length) return [];
+  return services.map((s) => s.name).filter((n) => n.trim());
 }
