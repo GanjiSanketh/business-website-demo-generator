@@ -1,3 +1,17 @@
+@if (announcementEnabled) {
+  <div class="restaurant02-announcement" role="region" aria-label="Announcement">
+    <div class="announcement-inner">
+      <span class="announcement-text">{{ announcementText }}</span>
+      @if (announcementLink) {
+        <a class="announcement-link" [href]="announcementLink" target="_blank" rel="noopener noreferrer">
+          {{ announcementLinkText }}
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+      }
+    </div>
+  </div>
+}
+
 <!-- HEADER -->
 <header class="restaurant02-header" [class.scrolled]="isScrolled">
   <div class="header-container">
@@ -21,14 +35,12 @@
     </nav>
 
     <div class="header-actions">
-      @if (primaryCtaUrl) {
-        <a class="header-cta" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null" [attr.aria-label]="primaryCtaLabel + (hasWhatsApp ? ' on WhatsApp' : '')">
-          @if (hasWhatsApp) {
-            <i class="bi bi-whatsapp" aria-hidden="true"></i>
-          } @else {
-            <i class="bi bi-telephone" aria-hidden="true"></i>
+      @if (effectiveCta) {
+        <a class="header-cta" [href]="effectiveCta.href || '#'" [attr.target]="effectiveCta.external ? '_blank' : null" [attr.rel]="effectiveCta.external ? 'noopener noreferrer' : null" (click)="onPrimaryCtaClick($event)" [attr.aria-label]="effectiveCta.label">
+          @if (primaryCtaIcon) {
+            <i class="bi {{ primaryCtaIcon }}" aria-hidden="true"></i>
           }
-          <span>{{ primaryCtaLabel }}</span>
+          <span>{{ effectiveCta.label }}</span>
         </a>
       }
       <button class="mobile-menu-btn" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen" aria-label="Toggle menu" type="button">
@@ -72,14 +84,12 @@
           <p class="hero-description">{{ heroDescription }}</p>
         }
         <div class="hero-actions">
-          @if (primaryCtaUrl) {
-            <a class="btn-primary" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null">
-              @if (hasWhatsApp) {
-                <i class="bi bi-calendar-check" aria-hidden="true"></i>
-              } @else {
-                <i class="bi bi-telephone" aria-hidden="true"></i>
+          @if (effectiveCta) {
+            <a class="btn-primary" [href]="effectiveCta.href || '#'" [attr.target]="effectiveCta.external ? '_blank' : null" [attr.rel]="effectiveCta.external ? 'noopener noreferrer' : null" (click)="onPrimaryCtaClick($event)">
+              @if (primaryCtaIcon) {
+                <i class="bi {{ primaryCtaIcon }}" aria-hidden="true"></i>
               }
-              <span>{{ primaryCtaLabel }}</span>
+              <span>{{ effectiveCta.label }}</span>
             </a>
           }
           @if (hasWhatsApp && hasPhone) {
@@ -152,9 +162,9 @@
                 }
               }
             </div>
-            @if (primaryCtaUrl) {
-              <a class="btn-text" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null">
-                <span>{{ hasWhatsApp ? 'See the full menu' : 'Call for the menu' }}</span>
+            @if (effectiveCta) {
+              <a class="btn-text" [href]="effectiveCta.href || '#'" [attr.target]="effectiveCta.external ? '_blank' : null" [attr.rel]="effectiveCta.external ? 'noopener noreferrer' : null" (click)="onPrimaryCtaClick($event)">
+                <span>{{ effectiveCta.label }}</span>
                 <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </a>
             }
@@ -177,16 +187,16 @@
 
       <div class="menu-grid" role="list">
         @for (item of displayMenu; track $index; let i = $index) {
-          @if (primaryCtaUrl) {
-            <a class="menu-card" role="listitem" [href]="primaryCtaUrl" [attr.target]="hasWhatsApp ? '_blank' : null" [attr.rel]="hasWhatsApp ? 'noopener noreferrer' : null"
-              [attr.aria-label]="'Ask about ' + item + (hasWhatsApp ? ' on WhatsApp' : ' by phone')">
+          @if (effectiveCta) {
+            <a class="menu-card" role="listitem" [href]="effectiveCta.href || '#'" [attr.target]="effectiveCta.external ? '_blank' : null" [attr.rel]="effectiveCta.external ? 'noopener noreferrer' : null" (click)="onPrimaryCtaClick($event)"
+              [attr.aria-label]="item + ' — ' + effectiveCta.label">
               <div class="menu-card-icon" aria-hidden="true">
                 <i class="bi {{ serviceIcon(i) }}"></i>
               </div>
               <span class="menu-card-index">{{ (i + 1).toString().padStart(2, '0') }}</span>
               <h3 class="menu-card-name">{{ item }}</h3>
               <span class="menu-card-cta">
-                <span>{{ hasWhatsApp ? 'Ask us' : 'Call us' }}</span>
+                <span>{{ effectiveCta.label }}</span>
                 <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </span>
             </a>
@@ -269,6 +279,90 @@
       }
     </div>
   </section>
+
+  <!-- TESTIMONIALS -->
+  @if (displayTestimonials.length > 0) {
+    <section id="testimonials" class="cafe-testimonials" aria-labelledby="testimonials-title">
+      <div class="section-container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Guest Reviews</span>
+            <h2 id="testimonials-title">What Our Guests Say</h2>
+          </div>
+        </div>
+        <div class="testimonials-grid" role="list">
+          @for (t of displayTestimonials; track t.id) {
+            <article class="testimonial-card" role="listitem">
+              <div class="testimonial-stars" [attr.aria-label]="'Rated ' + (t.rating || 0) + ' out of 5'">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <i
+                    class="bi"
+                    [ngClass]="star <= starsFor(t.rating).filled ? 'bi-star-fill' : 'bi-star'"
+                    aria-hidden="true"
+                  ></i>
+                }
+              </div>
+              <blockquote class="testimonial-quote">“{{ t.quote }}”</blockquote>
+              <div class="testimonial-person">
+                @if (t.imageUrl) {
+                  <img [src]="t.imageUrl" [alt]="t.name" class="testimonial-avatar" loading="lazy" />
+                } @else {
+                  <span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
+                    <i class="bi bi-person"></i>
+                  </span>
+                }
+                <div>
+                  <strong class="testimonial-name">{{ t.name }}</strong>
+                  @if (t.role) {
+                    <span class="testimonial-role">{{ t.role }}</span>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- FAQ -->
+  @if (displayFaqs.length > 0) {
+    <section id="faq" class="cafe-faq" aria-labelledby="faq-title">
+      <div class="section-container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Good to Know</span>
+            <h2 id="faq-title">Frequently Asked Questions</h2>
+          </div>
+        </div>
+        <div class="faq-list">
+          @for (faq of displayFaqs; track faq.id; let i = $index) {
+            <div class="faq-item" [class.open]="isFaqOpen(i)">
+              <h3 class="faq-question">
+                <button
+                  type="button"
+                  class="faq-toggle"
+                  [attr.aria-expanded]="isFaqOpen(i)"
+                  [attr.aria-controls]="'faq-panel-' + i"
+                  (click)="toggleFaq(i)"
+                >
+                  <span>{{ faq.question }}</span>
+                  <i
+                    class="bi"
+                    [ngClass]="isFaqOpen(i) ? 'bi-chevron-up' : 'bi-chevron-down'"
+                    aria-hidden="true"
+                  ></i>
+                </button>
+              </h3>
+              <div [id]="'faq-panel-' + i" class="faq-answer" role="region" [class.open]="isFaqOpen(i)">
+                <p>{{ faq.answer }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
 
   <!-- CONTACT -->
   <section id="contact" class="cafe-contact" aria-labelledby="contact-title">
@@ -380,6 +474,24 @@
             <i class="bi bi-geo-alt" aria-hidden="true"></i>
             {{ business.address }}
           </address>
+        }
+        @if (socialLinks.length > 0) {
+          <div class="footer-social">
+            <h4>Follow Us</h4>
+            <div class="footer-social-icons">
+              @for (link of socialLinks; track link.platform) {
+                <a
+                  [href]="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [attr.aria-label]="link.label"
+                  class="footer-social-link"
+                >
+                  <i [class]="'bi ' + link.icon" aria-hidden="true"></i>
+                </a>
+              }
+            </div>
+          </div>
         }
       </div>
     </div>

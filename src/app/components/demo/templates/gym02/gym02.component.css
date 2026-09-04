@@ -1189,6 +1189,285 @@ a {
 }
 
 /* ==========================================================================
+   PHASE 3 · ANNOUNCEMENT BAR
+   ========================================================================== */
+:host {
+  --announcement-offset: 0px;
+  --announcement-height: 44px;
+}
+
+:host(.has-announcement) {
+  --announcement-offset: var(--announcement-height);
+}
+
+.gym2-announcement {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  min-height: var(--announcement-height);
+  display: flex;
+  align-items: center;
+  background: var(--theme-accent, #e63946);
+  color: var(--theme-accent-contrast, #fff);
+  font-size: 0.85rem;
+}
+
+.gym2-announcement-inner {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0.45rem clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.gym2-announcement-inner > i {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.gym2-announcement-text {
+  font-weight: 600;
+}
+
+.gym2-announcement-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+}
+
+.gym2-announcement-link:hover {
+  opacity: 0.85;
+}
+
+.gym2-header {
+  top: var(--announcement-offset, 0px);
+}
+
+/* ==========================================================================
+   PHASE 3 · TESTIMONIALS
+   ========================================================================== */
+.testimonials-section {
+  background: var(--theme-bg-soft, #f6f6f6);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+
+.testimonial-card {
+  background: var(--theme-surface, #ffffff);
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--theme-accent, #e63946);
+}
+
+.testimonial-stars {
+  display: flex;
+  gap: 0.2rem;
+  color: #f5b942;
+  font-size: 0.95rem;
+}
+
+.testimonial-quote {
+  flex: 1;
+  color: var(--theme-text, #1a1a1a);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.testimonial-person {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.testimonial-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.testimonial-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-accent, #e63946);
+  color: var(--theme-accent-contrast, #fff);
+  font-size: 1.1rem;
+}
+
+.testimonial-name {
+  display: block;
+  color: var(--theme-text, #1a1a1a);
+  font-size: 0.9rem;
+}
+
+.testimonial-role {
+  display: block;
+  color: var(--theme-text-muted, #6b7280);
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+}
+
+/* ==========================================================================
+   PHASE 3 · FAQ
+   ========================================================================== */
+.faq-section {
+  background: var(--theme-bg, #ffffff);
+}
+
+.faq-list {
+  max-width: 820px;
+  margin: 2.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.faq-item {
+  background: var(--theme-surface, #f8f8f8);
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.faq-item.open {
+  border-color: var(--theme-accent, #e63946);
+}
+
+.faq-question {
+  margin: 0;
+}
+
+.faq-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: none;
+  border: none;
+  color: var(--theme-text, #1a1a1a);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.faq-toggle:hover {
+  color: var(--theme-accent, #e63946);
+}
+
+.faq-toggle i {
+  flex-shrink: 0;
+  color: var(--theme-accent, #e63946);
+  transition: transform 0.2s ease;
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.faq-answer.open {
+  max-height: 500px;
+}
+
+.faq-answer p {
+  padding: 0 1.25rem 1.1rem;
+  margin: 0;
+  color: var(--theme-text-muted, #6b7280);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   PHASE 3 · FOOTER SOCIAL
+   ========================================================================== */
+.footer-social {
+  margin-top: 1.25rem;
+}
+
+.footer-social h4 {
+  margin-bottom: 0.65rem;
+}
+
+.footer-social-icons {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.footer-social-link {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--theme-surface, #fff);
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+  color: var(--theme-text, #1a1a1a);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.footer-social-link:hover {
+  background: var(--theme-accent, #e63946);
+  border-color: var(--theme-accent, #e63946);
+  color: var(--theme-accent-contrast, #fff);
+}
+
+/* ==========================================================================
+   RESPONSIVE · PHASE 3
+   ========================================================================== */
+@media (max-width: 992px) {
+  .testimonials-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gym2-announcement-inner {
+    padding: 0.4rem 1rem;
+    font-size: 0.78rem;
+  }
+}
+
+/* ==========================================================================
    UTILITY
    ========================================================================== */
 :host {

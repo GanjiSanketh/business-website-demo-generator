@@ -22,6 +22,50 @@ export interface DayHours {
   closed?: boolean;
 }
 
+export interface Testimonial {
+  id: string;
+  name: string;
+  /** Role / title, e.g. "Regular client" or "Member since 2021". */
+  role?: string;
+  quote: string;
+  /** Optional rating, 1–5. */
+  rating?: number;
+  imageUrl?: string;
+}
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+/** Social profile URLs. Every platform is optional. */
+export interface SocialLinks {
+  instagram?: string;
+  facebook?: string;
+  youtube?: string;
+  linkedin?: string;
+  /** X (Twitter). */
+  x?: string;
+}
+
+export type PrimaryCtaAction = 'phone' | 'whatsapp' | 'url' | 'scroll';
+
+export interface PrimaryCta {
+  enabled: boolean;
+  label: string;
+  actionType: PrimaryCtaAction;
+  /** URL for actionType 'url'; section id for actionType 'scroll'. */
+  value?: string;
+}
+
+export interface AnnouncementConfig {
+  enabled: boolean;
+  text: string;
+  linkText?: string;
+  linkUrl?: string;
+}
+
 export interface Business {
   id?: string;
   businessName: string;
@@ -54,6 +98,16 @@ export interface Business {
   faviconUrl?: string;
   /** Business hours. */
   businessHours?: BusinessHours;
+  /** Optional customer testimonials/reviews. */
+  testimonials?: Testimonial[];
+  /** Optional frequently asked questions. */
+  faqs?: FAQItem[];
+  /** Optional social media profile URLs. */
+  socialLinks?: SocialLinks;
+  /** Optional configurable primary call-to-action. */
+  primaryCta?: PrimaryCta;
+  /** Optional announcement/promotion bar. */
+  announcement?: AnnouncementConfig;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

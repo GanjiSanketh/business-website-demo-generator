@@ -466,13 +466,285 @@
    HERO
    ============================================ */
 
+/* ============================================
+   PHASE 3 · ANNOUNCEMENT BAR
+   ============================================ */
+:host {
+  --announcement-offset: 0px;
+  --announcement-height: 44px;
+}
+
+:host(.has-announcement) {
+  --announcement-offset: var(--announcement-height);
+}
+
+.salon02-announcement {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  min-height: var(--announcement-height);
+  display: flex;
+  align-items: center;
+  background: var(--color-accent, #c9a463);
+  color: var(--color-accent-contrast, #1a1713);
+  font-size: 0.85rem;
+}
+
+.salon02-announcement-inner {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0.45rem var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.salon02-announcement-inner > i {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.salon02-announcement-text {
+  font-weight: 600;
+}
+
+.salon02-announcement-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+}
+
+.salon02-announcement-link:hover {
+  opacity: 0.85;
+}
+
+.salon02-header {
+  top: var(--announcement-offset, 0px);
+}
+
+/* ============================================
+   PHASE 3 · TESTIMONIALS
+   ============================================ */
+.salon02-testimonials {
+  background: var(--color-bg-subtle, #faf8f4);
+  padding: clamp(4rem, 8vw, 6.5rem) 0;
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+
+.testimonial-card {
+  background: var(--color-bg, #ffffff);
+  border: 1px solid var(--color-border, #e5e5e5);
+  border-radius: 16px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: transform var(--transition-base), border-color var(--transition-base);
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-accent, #c9a463);
+}
+
+.testimonial-stars {
+  display: flex;
+  gap: 0.2rem;
+  color: var(--color-accent-bright, #c9a463);
+  font-size: 0.95rem;
+}
+
+.testimonial-quote {
+  flex: 1;
+  color: var(--color-text, #1a1a1a);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.testimonial-person {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.testimonial-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.testimonial-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent, #c9a463);
+  color: #1a1713;
+  font-size: 1.1rem;
+}
+
+.testimonial-name {
+  display: block;
+  color: var(--color-text, #1a1a1a);
+  font-size: 0.9rem;
+}
+
+.testimonial-role {
+  display: block;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+}
+
+/* ============================================
+   PHASE 3 · FAQ
+   ============================================ */
+.salon02-faq {
+  background: var(--color-bg, #ffffff);
+  padding: clamp(4rem, 8vw, 6.5rem) 0;
+}
+
+.faq-list {
+  max-width: 820px;
+  margin: 2.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.faq-item {
+  background: var(--color-bg-subtle, #faf8f4);
+  border: 1px solid var(--color-border, #e5e5e5);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color var(--transition-base);
+}
+
+.faq-item.open {
+  border-color: var(--color-accent, #c9a463);
+}
+
+.faq-question {
+  margin: 0;
+}
+
+.faq-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: none;
+  border: none;
+  color: var(--color-text, #1a1a1a);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.faq-toggle:hover {
+  color: var(--color-accent, #c9a463);
+}
+
+.faq-toggle i {
+  flex-shrink: 0;
+  color: var(--color-accent, #c9a463);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.faq-answer.open {
+  max-height: 500px;
+}
+
+.faq-answer p {
+  padding: 0 1.25rem 1.1rem;
+  margin: 0;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* ============================================
+   PHASE 3 · FOOTER SOCIAL
+   ============================================ */
+.footer-social {
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.footer-social-link {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e5e5e5);
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+}
+
+.footer-social-link:hover {
+  background: var(--color-accent, #c9a463);
+  border-color: var(--color-accent, #c9a463);
+  color: #1a1713;
+}
+
+/* ============================================
+   PHASE 3 · RESPONSIVE
+   ============================================ */
+@media (max-width: 992px) {
+  .testimonials-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .salon02-announcement-inner {
+    padding: 0.4rem 1rem;
+    font-size: 0.78rem;
+  }
+}
+
 .salon02-hero {
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
   align-items: center;
-  padding: calc(var(--header-height) + var(--space-lg)) 0 var(--space-xl);
+  padding: calc(var(--header-height) + var(--space-lg) + var(--announcement-offset, 0px)) 0 var(--space-xl);
   background:
     radial-gradient(ellipse 60% 50% at 85% 20%, var(--color-accent-glow), transparent 70%),
     radial-gradient(ellipse 50% 40% at 10% 85%, color-mix(in srgb, var(--color-accent-deep) 12%, transparent), transparent 70%),

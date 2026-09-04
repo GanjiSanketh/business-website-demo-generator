@@ -8,6 +8,15 @@ import {
   buildThemeCss,
   themeOptionClasses,
 } from '../../themes/theme.registry';
+import {
+  getAnnouncementLink,
+  getFaqs,
+  getSocialLinks,
+  getTestimonials,
+  isAnnouncementEnabled,
+  resolvePrimaryCta,
+  starIcons,
+} from '../../shared/advanced-features';
 
 @Component({
   selector: 'app-gym02',
@@ -36,7 +45,8 @@ export class Gym02Component implements OnInit, OnDestroy {
 
   private applyTheme(): void {
     this.themeCss = this._theme ? buildThemeCss(this._theme) : '';
-    this.themeClasses = this._theme ? themeOptionClasses(this._theme) : '';
+    const annClass = isAnnouncementEnabled(this.business) ? ' has-announcement' : '';
+    this.themeClasses = (this._theme ? themeOptionClasses(this._theme) : '') + annClass;
   }
 
   mobileMenuOpen = false;
@@ -49,7 +59,71 @@ export class Gym02Component implements OnInit, OnDestroy {
   private scrollY = signal(0);
   private document = inject(DOCUMENT);
 
-  private static readonly SECTION_IDS = ['home', 'features', 'programs', 'trainers', 'gallery', 'contact'];
+  private static readonly SECTION_IDS = [
+    'home',
+    'features',
+    'programs',
+    'trainers',
+    'gallery',
+    'testimonials',
+    'faq',
+    'contact',
+  ];
+
+  // ---- Phase 3 optional features ----
+  faqOpen: boolean[] = [];
+
+  get announcementEnabled(): boolean {
+    return isAnnouncementEnabled(this.business);
+  }
+
+  get announcementText(): string {
+    return this.business.announcement?.text?.trim() || '';
+  }
+
+  get announcementLink(): string | null {
+    return getAnnouncementLink(this.business);
+  }
+
+  get announcementLinkText(): string {
+    return this.business.announcement?.linkText?.trim() || '';
+  }
+
+  get socialLinks() {
+    return getSocialLinks(this.business);
+  }
+
+  get primaryCta() {
+    return resolvePrimaryCta(this.business, this.phoneUrl, this.whatsappUrl);
+  }
+
+  get displayTestimonials() {
+    return getTestimonials(this.business);
+  }
+
+  get displayFaqs() {
+    return getFaqs(this.business);
+  }
+
+  starsFor(rating?: number): { filled: number; empty: number } {
+    return starIcons(rating || 0);
+  }
+
+  toggleFaq(index: number): void {
+    this.faqOpen[index] = !this.faqOpen[index];
+  }
+
+  isFaqOpen(index: number): boolean {
+    return !!this.faqOpen[index];
+  }
+
+  onPrimaryCtaClick(event: MouseEvent): void {
+    const cta = this.primaryCta;
+    if (cta?.scrollTo) {
+      event.preventDefault();
+      this.scrollTo(cta.scrollTo);
+    }
+  }
 
   get heroImage(): string {
     return this.business.images?.[0] || '';
@@ -117,8 +191,10 @@ get displayServices(): string[] {
 
   ngOnInit(): void {
     this.galleryImageErrors = this.galleryImages.map(() => false);
+    this.faqOpen = this.displayFaqs.map(() => false);
     this.updateScrollY();
     window.addEventListener('scroll', this.onScroll, { passive: true });
+    this.applyTheme();
   }
 
   ngOnDestroy(): void {

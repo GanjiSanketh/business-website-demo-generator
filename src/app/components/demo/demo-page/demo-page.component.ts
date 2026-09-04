@@ -12,6 +12,7 @@ import {
 } from '../templates/template.registry';
 import { resolveThemeConfig, ThemeConfig } from '../themes/theme.registry';
 import { getCategoryById } from '../categories/category.registry';
+import { getFaqs, getSocialLinks } from '../shared/advanced-features';
 
 import '../templates/template.init';
 
@@ -147,6 +148,7 @@ export class DemoPageComponent implements OnInit, OnDestroy {
 
     // --- JSON-LD Structured Data ---
     this.injectJsonLd(business, pageUrl, ogImage);
+    this.injectFaqJsonLd(business, pageUrl);
   }
 
   /** Helper to set/update a meta tag. */
@@ -255,10 +257,53 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     return hours.length ? hours : undefined;
   }
 
-  /** Build sameAs array from social links (if we add them later). */
+  /** Build sameAs array from the configured social profile URLs. */
   private buildSocialLinks(business: Business): string[] | undefined {
-    // Placeholder for future social links field
-    return undefined;
+    const links = getSocialLinks(business);
+    return links.length ? links.map((l) => l.url) : undefined;
+  }
+
+  /**
+   * Inject a separate FAQPage JSON-LD block when FAQs are configured. Kept
+   * in its own <script data-seo="faq"> so the existing LocalBusiness
+   * structured data is never modified; nothing is emitted when there are no
+   * FAQs (avoiding invalid/empty structured data).
+   */
+  private injectFaqJsonLd(business: Business, pageUrl: string): void {
+    const faqs = getFaqs(business);
+    if (!faqs.length) {
+      this.removeFaqJsonLd();
+      return;
+    }
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: f.answer,
+        },
+      })),
+    };
+    const scriptSelector = 'script[type="application/ld+json"][data-seo="faq"]';
+    let script = this.document.querySelector(scriptSelector) as HTMLScriptElement | null;
+    if (!script) {
+      script = this.document.createElement('script');
+      script.setAttribute('type', 'application/ld+json');
+      script.setAttribute('data-seo', 'faq');
+      this.document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(jsonLd);
+  }
+
+  /** Remove a previously injected FAQ JSON-LD block (when FAQs are gone). */
+  private removeFaqJsonLd(): void {
+    const existing = this.document.querySelector(
+      'script[type="application/ld+json"][data-seo="faq"]'
+    ) as HTMLScriptElement | null;
+    existing?.remove();
   }
 
   private renderTemplate(templateId: string): void {

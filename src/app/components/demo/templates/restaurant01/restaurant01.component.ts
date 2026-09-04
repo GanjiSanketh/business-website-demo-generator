@@ -8,6 +8,16 @@ import {
   themeOptionClasses,
 } from '../../themes/theme.registry';
 import { getCategoryDisplayName } from '../../categories/category.registry';
+import {
+  getAnnouncementLink,
+  getFaqs,
+  getSocialLinks,
+  getTestimonials,
+  isAnnouncementEnabled,
+  resolvePrimaryCta,
+  ResolvedPrimaryCta,
+  starIcons,
+} from '../../shared/advanced-features';
 
 @Component({
   selector: 'app-restaurant01',
@@ -37,7 +47,10 @@ export class Restaurant01Component implements OnInit, OnDestroy {
 
   private applyTheme(): void {
     this.themeCss = this._theme ? buildThemeCss(this._theme) : '';
-    this.themeClasses = this._theme ? themeOptionClasses(this._theme) : '';
+    // Announcement offset class: pushes the fixed header below the optional
+    // promo bar so navigation is never overlapped.
+    const annClass = isAnnouncementEnabled(this.business) ? ' has-announcement' : '';
+    this.themeClasses = (this._theme ? themeOptionClasses(this._theme) : '') + annClass;
   }
 
   mobileMenuOpen = false;
@@ -98,6 +111,74 @@ export class Restaurant01Component implements OnInit, OnDestroy {
     return this.hasWhatsApp ? 'Reserve a Table' : 'Call to Reserve';
   }
 
+  // ---- Phase 3 optional features ----
+  faqOpen: boolean[] = [];
+
+  get announcementEnabled(): boolean {
+    return isAnnouncementEnabled(this.business);
+  }
+
+  get announcementText(): string {
+    return this.business.announcement?.text?.trim() || '';
+  }
+
+  get announcementLink(): string | null {
+    return getAnnouncementLink(this.business);
+  }
+
+  get announcementLinkText(): string {
+    return this.business.announcement?.linkText?.trim() || '';
+  }
+
+  get socialLinks() {
+    return getSocialLinks(this.business);
+  }
+
+  get primaryCta() {
+    return resolvePrimaryCta(this.business, this.phoneUrl, this.whatsappUrl);
+  }
+
+  /**
+   * Primary conversion slot: the configurable CTA when enabled, otherwise
+   * the legacy WhatsApp/phone fallback so existing behavior is preserved.
+   */
+  get effectiveCta(): ResolvedPrimaryCta | null {
+    const resolved = this.primaryCta;
+    if (resolved) return resolved;
+    if (this.primaryCtaUrl) {
+      return { label: this.primaryCtaLabel, href: this.primaryCtaUrl, external: this.hasWhatsApp };
+    }
+    return null;
+  }
+
+  get displayTestimonials() {
+    return getTestimonials(this.business);
+  }
+
+  get displayFaqs() {
+    return getFaqs(this.business);
+  }
+
+  starsFor(rating?: number): { filled: number; empty: number } {
+    return starIcons(rating || 0);
+  }
+
+  toggleFaq(index: number): void {
+    this.faqOpen[index] = !this.faqOpen[index];
+  }
+
+  isFaqOpen(index: number): boolean {
+    return !!this.faqOpen[index];
+  }
+
+  onPrimaryCtaClick(event: MouseEvent): void {
+    const cta = this.effectiveCta;
+    if (cta?.scrollTo) {
+      event.preventDefault();
+      this.scrollTo(cta.scrollTo);
+    }
+  }
+
   get categoryLabel(): string {
     return getCategoryDisplayName(this.business.category, 'Restaurant & Dining');
   }
@@ -126,8 +207,12 @@ export class Restaurant01Component implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.galleryImageErrors = this.galleryImages.map(() => false);
+    this.faqOpen = this.displayFaqs.map(() => false);
     this.updateScrollY();
     window.addEventListener('scroll', this.onScroll, { passive: true });
+    // Business is set before theme by the host; re-apply so the announcement
+    // offset class is included even when the theme was assigned first.
+    this.applyTheme();
   }
 
   ngOnDestroy(): void {

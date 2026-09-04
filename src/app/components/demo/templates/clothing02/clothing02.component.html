@@ -1,3 +1,23 @@
+@if (announcementEnabled) {
+  <div class="clothing2-announcement" role="region" aria-label="Announcement">
+    <div class="clothing2-announcement-inner">
+      <i class="bi bi-megaphone-fill" aria-hidden="true"></i>
+      <span class="clothing2-announcement-text">{{ announcementText }}</span>
+      @if (announcementLink) {
+        <a
+          class="clothing2-announcement-link"
+          [href]="announcementLink"
+          target="_blank"
+          rel="noopener"
+        >
+          {{ announcementLinkText }}
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+      }
+    </div>
+  </div>
+}
+
 <header id="home" class="clothing2-header" [class.scrolled]="isScrolled">
   <div class="header-inner">
     <div class="logo" [attr.aria-label]="business.businessName + ' - Home'">
@@ -57,6 +77,17 @@
       <p class="hero-tagline">{{ business.tagline || 'Modern Essentials for Every Day' }}</p>
       <p class="hero-description">{{ displayDescription }}</p>
       <div class="hero-cta-group">
+        @if (primaryCta) {
+          <a
+            class="btn btn-primary btn-lg"
+            [href]="primaryCta.href || '#'"
+            [attr.target]="primaryCta.external ? '_blank' : null"
+            [attr.rel]="primaryCta.external ? 'noopener' : null"
+            (click)="onPrimaryCtaClick($event)"
+          >
+            <span>{{ primaryCta.label }}</span>
+          </a>
+        }
         <a href="#new-arrivals" class="btn btn-primary btn-lg" (click)="scrollTo('new-arrivals')">
           Shop New Arrivals
           <i class="bi bi-arrow-right" aria-hidden="true"></i>
@@ -81,20 +112,6 @@
       <i class="bi bi-chevron-double-down"></i>
     </div>
   </section>
-
-  <!-- ANNOUNCEMENT BAR -->
-  <div class="announcement-bar">
-    <div class="announcement-content">
-      <span class="announcement-icon"><i class="bi bi-truck" aria-hidden="true"></i></span>
-      <span>Free shipping on orders over $150</span>
-      <span class="announcement-divider" aria-hidden="true">|</span>
-      <span class="announcement-icon"><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span>
-      <span>30-day easy returns</span>
-      <span class="announcement-divider" aria-hidden="true">|</span>
-      <span class="announcement-icon"><i class="bi bi-gift" aria-hidden="true"></i></span>
-      <span>Gift wrapping available</span>
-    </div>
-  </div>
 
   <!-- NEW ARRIVALS -->
   <section id="new-arrivals" class="section products-section" aria-labelledby="new-arrivals-title">
@@ -237,6 +254,92 @@
                 <i class="bi bi-zoom-in" aria-hidden="true"></i>
               </figcaption>
             </figure>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- TESTIMONIALS -->
+  @if (displayTestimonials.length > 0) {
+    <section id="testimonials" class="section testimonials-section" aria-labelledby="testimonials-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Customer Love</span>
+          <h2 id="testimonials-title" class="section-title">What Our Customers Say</h2>
+          <p class="section-description">Real feedback from the community wearing our pieces.</p>
+        </header>
+        <div class="testimonials-grid">
+          @for (t of displayTestimonials; track t.id) {
+            <article class="testimonial-card">
+              <div class="testimonial-stars" [attr.aria-label]="'Rated ' + (t.rating || 0) + ' out of 5'">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <i
+                    class="bi"
+                    [ngClass]="star <= starsFor(t.rating).filled ? 'bi-star-fill' : 'bi-star'"
+                    aria-hidden="true"
+                  ></i>
+                }
+              </div>
+              <p class="testimonial-quote">“{{ t.quote }}”</p>
+              <div class="testimonial-person">
+                @if (t.imageUrl) {
+                  <img [src]="t.imageUrl" [alt]="t.name" class="testimonial-avatar" loading="lazy" />
+                } @else {
+                  <span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
+                    <i class="bi bi-person"></i>
+                  </span>
+                }
+                <div>
+                  <strong class="testimonial-name">{{ t.name }}</strong>
+                  @if (t.role) {
+                    <span class="testimonial-role">{{ t.role }}</span>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- FAQ -->
+  @if (displayFaqs.length > 0) {
+    <section id="faq" class="section faq-section" aria-labelledby="faq-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Good to Know</span>
+          <h2 id="faq-title" class="section-title">Frequently Asked Questions</h2>
+        </header>
+        <div class="faq-list">
+          @for (faq of displayFaqs; track faq.id; let i = $index) {
+            <div class="faq-item" [class.open]="isFaqOpen(i)">
+              <h3 class="faq-question">
+                <button
+                  type="button"
+                  class="faq-toggle"
+                  [attr.aria-expanded]="isFaqOpen(i)"
+                  [attr.aria-controls]="'faq-panel-' + i"
+                  (click)="toggleFaq(i)"
+                >
+                  <span>{{ faq.question }}</span>
+                  <i
+                    class="bi"
+                    [ngClass]="isFaqOpen(i) ? 'bi-chevron-up' : 'bi-chevron-down'"
+                    aria-hidden="true"
+                  ></i>
+                </button>
+              </h3>
+              <div
+                [id]="'faq-panel-' + i"
+                class="faq-answer"
+                role="region"
+                [class.open]="isFaqOpen(i)"
+              >
+                <p>{{ faq.answer }}</p>
+              </div>
+            </div>
           }
         </div>
       </div>
@@ -394,12 +497,21 @@
         @if (business.address) {
           <address class="footer-address">{{ business.address }}</address>
         }
-        <div class="footer-social">
-          <a href="#" class="social-link" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
-          <a href="#" class="social-link" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
-          <a href="#" class="social-link" aria-label="Pinterest"><i class="bi bi-pinterest"></i></a>
-          <a href="#" class="social-link" aria-label="Email"><i class="bi bi-envelope"></i></a>
-        </div>
+        @if (socialLinks.length > 0) {
+          <div class="footer-social">
+            @for (link of socialLinks; track link.platform) {
+              <a
+                [href]="link.url"
+                class="social-link"
+                target="_blank"
+                rel="noopener"
+                [attr.aria-label]="link.label"
+              >
+                <i [class]="'bi ' + link.icon"></i>
+              </a>
+            }
+          </div>
+        }
       </div>
     </div>
     <div class="footer-bottom">

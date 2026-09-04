@@ -1,3 +1,23 @@
+@if (announcementEnabled) {
+  <div class="salon02-announcement" role="region" aria-label="Announcement">
+    <div class="salon02-announcement-inner">
+      <i class="bi bi-megaphone-fill" aria-hidden="true"></i>
+      <span class="salon02-announcement-text">{{ announcementText }}</span>
+      @if (announcementLink) {
+        <a
+          class="salon02-announcement-link"
+          [href]="announcementLink"
+          target="_blank"
+          rel="noopener"
+        >
+          {{ announcementLinkText }}
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+      }
+    </div>
+  </div>
+}
+
 <!-- HEADER -->
 <header class="salon02-header" [class.scrolled]="isScrolled">
   <div class="header-container">
@@ -60,6 +80,17 @@
           <p class="hero-description">{{ business.description }}</p>
         }
         <div class="hero-actions">
+          @if (primaryCta) {
+            <a
+              class="btn-primary"
+              [href]="primaryCta.href || '#'"
+              [attr.target]="primaryCta.external ? '_blank' : null"
+              [attr.rel]="primaryCta.external ? 'noopener' : null"
+              (click)="onPrimaryCtaClick($event)"
+            >
+              <span>{{ primaryCta.label }}</span>
+            </a>
+          }
           <a class="btn-primary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
             <span>Book Appointment</span>
             <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
@@ -220,6 +251,89 @@
     </div>
   </section>
 
+  <!-- TESTIMONIALS -->
+  @if (displayTestimonials.length > 0) {
+    <section id="testimonials" class="salon02-testimonials" aria-labelledby="testimonials-title">
+      <div class="section-container">
+        <span class="section-label">Client Stories</span>
+        <h2 id="testimonials-title">What Our Clients Say</h2>
+
+        <div class="testimonials-grid">
+          @for (t of displayTestimonials; track t.id) {
+            <article class="testimonial-card">
+              <div class="testimonial-stars" [attr.aria-label]="'Rated ' + (t.rating || 0) + ' out of 5'">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <i
+                    class="bi"
+                    [ngClass]="star <= starsFor(t.rating).filled ? 'bi-star-fill' : 'bi-star'"
+                    aria-hidden="true"
+                  ></i>
+                }
+              </div>
+              <p class="testimonial-quote">“{{ t.quote }}”</p>
+              <div class="testimonial-person">
+                @if (t.imageUrl) {
+                  <img [src]="t.imageUrl" [alt]="t.name" class="testimonial-avatar" loading="lazy" />
+                } @else {
+                  <span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
+                    <i class="bi bi-person"></i>
+                  </span>
+                }
+                <div>
+                  <strong class="testimonial-name">{{ t.name }}</strong>
+                  @if (t.role) {
+                    <span class="testimonial-role">{{ t.role }}</span>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- FAQ -->
+  @if (displayFaqs.length > 0) {
+    <section id="faq" class="salon02-faq" aria-labelledby="faq-title">
+      <div class="section-container">
+        <span class="section-label">Good to Know</span>
+        <h2 id="faq-title">Frequently Asked Questions</h2>
+
+        <div class="faq-list">
+          @for (faq of displayFaqs; track faq.id; let i = $index) {
+            <div class="faq-item" [class.open]="isFaqOpen(i)">
+              <h3 class="faq-question">
+                <button
+                  type="button"
+                  class="faq-toggle"
+                  [attr.aria-expanded]="isFaqOpen(i)"
+                  [attr.aria-controls]="'faq-panel-' + i"
+                  (click)="toggleFaq(i)"
+                >
+                  <span>{{ faq.question }}</span>
+                  <i
+                    class="bi"
+                    [ngClass]="isFaqOpen(i) ? 'bi-dash-lg' : 'bi-plus-lg'"
+                    aria-hidden="true"
+                  ></i>
+                </button>
+              </h3>
+              <div
+                [id]="'faq-panel-' + i"
+                class="faq-answer"
+                role="region"
+                [class.open]="isFaqOpen(i)"
+              >
+                <p>{{ faq.answer }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
   <!-- CONTACT -->
   <section id="contact" class="salon02-contact" aria-labelledby="contact-title">
     <div class="section-container">
@@ -338,6 +452,21 @@
             <i class="bi bi-geo-alt" aria-hidden="true"></i>
             {{ business.address }}
           </address>
+        }
+        @if (socialLinks.length > 0) {
+          <div class="footer-social">
+            @for (link of socialLinks; track link.platform) {
+              <a
+                [href]="link.url"
+                class="footer-social-link"
+                target="_blank"
+                rel="noopener"
+                [attr.aria-label]="link.label"
+              >
+                <i [class]="'bi ' + link.icon" aria-hidden="true"></i>
+              </a>
+            }
+          </div>
         }
       </div>
     </div>
