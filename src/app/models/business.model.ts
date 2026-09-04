@@ -6,6 +6,22 @@ export interface ServiceItem {
   description: string;
 }
 
+export interface BusinessHours {
+  monday?: DayHours;
+  tuesday?: DayHours;
+  wednesday?: DayHours;
+  thursday?: DayHours;
+  friday?: DayHours;
+  saturday?: DayHours;
+  sunday?: DayHours;
+}
+
+export interface DayHours {
+  open: string;
+  close: string;
+  closed?: boolean;
+}
+
 export interface Business {
   id?: string;
   businessName: string;
@@ -26,6 +42,18 @@ export interface Business {
   themeId?: string;
   /** Optional style overrides on top of the selected theme preset. */
   themeOptions?: ThemeOptions;
+  /** Custom SEO title (falls back to businessName if not set). */
+  seoTitle?: string;
+  /** Custom meta description (falls back to description/tagline if not set). */
+  seoDescription?: string;
+  /** Optional SEO keywords. */
+  seoKeywords?: string;
+  /** Social sharing image URL (Open Graph / Twitter). */
+  socialImageUrl?: string;
+  /** Custom favicon URL. */
+  faviconUrl?: string;
+  /** Business hours. */
+  businessHours?: BusinessHours;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

@@ -84,6 +84,60 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateMetadata> = {
     supported: true,
     component: null as unknown as Type<unknown>,
   },
+  // ---- Gym Templates ----
+  'gym-01': {
+    id: 'gym-01',
+    name: 'Powerful Dark',
+    categoryId: 'gym',
+    tags: ['fitness', 'dark', 'powerful', 'athletic'],
+    appearance: 'dark',
+    description:
+      'A bold, high-energy dark design with large hero imagery, strong CTAs, program cards, and athletic visual identity.',
+    defaultThemeId: 'power-dark',
+    supportedThemes: ['power-dark', 'steel-dark', 'energy-dark'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
+  'gym-02': {
+    id: 'gym-02',
+    name: 'Modern Fitness',
+    categoryId: 'gym',
+    tags: ['fitness', 'modern', 'clean', 'wellness'],
+    appearance: 'light',
+    description:
+      'A clean, contemporary fitness design with vibrant accents, program showcases, and approachable wellness aesthetic.',
+    defaultThemeId: 'fresh-light',
+    supportedThemes: ['fresh-light', 'clean-slate', 'vitality-light'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
+  // ---- Clothing Templates ----
+  'clothing-01': {
+    id: 'clothing-01',
+    name: 'Fashion Editorial',
+    categoryId: 'clothing-store',
+    tags: ['fashion', 'editorial', 'luxury', 'magazine'],
+    appearance: 'dark',
+    description:
+      'A high-end fashion magazine aesthetic with striking hero, editorial typography, and premium visual storytelling.',
+    defaultThemeId: 'noir-editorial',
+    supportedThemes: ['noir-editorial', 'champagne-luxe', 'monochrome-chic'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
+  'clothing-02': {
+    id: 'clothing-02',
+    name: 'Modern Boutique',
+    categoryId: 'clothing-store',
+    tags: ['fashion', 'boutique', 'modern', 'ecommerce'],
+    appearance: 'light',
+    description:
+      'A modern boutique ecommerce-inspired design with clean layout, visual merchandising, and strong product focus.',
+    defaultThemeId: 'boutique-rose',
+    supportedThemes: ['boutique-rose', 'modern-sand', 'urban-minimal'],
+    supported: true,
+    component: null as unknown as Type<unknown>,
+  },
 };
 
 export function registerTemplateComponent(id: string, component: Type<unknown>): void {

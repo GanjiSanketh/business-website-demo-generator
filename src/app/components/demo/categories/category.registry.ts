@@ -32,6 +32,8 @@ export interface CategoryMetadata {
   icon: string;
   /** Sort order in pickers (lower first). */
   order: number;
+  /** Schema.org type for JSON-LD structured data (e.g., "BeautySalon", "Restaurant"). */
+  schemaType?: string;
 }
 
 export const DEFAULT_CATEGORY_ID = 'salon';
@@ -43,6 +45,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Salons, barbershops, spas & beauty studios',
     icon: 'bi-scissors',
     order: 1,
+    schemaType: 'BeautySalon',
   },
   restaurant: {
     id: 'restaurant',
@@ -50,6 +53,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Professional websites for restaurants, cafés and dining businesses',
     icon: 'bi-cup-hot',
     order: 2,
+    schemaType: 'Restaurant',
   },
   gym: {
     id: 'gym',
@@ -57,6 +61,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Gyms, fitness & wellness centers',
     icon: 'bi-dumbbell',
     order: 3,
+    schemaType: 'HealthClub',
   },
   'clothing-store': {
     id: 'clothing-store',
@@ -64,6 +69,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Fashion boutiques & retail stores',
     icon: 'bi-bag',
     order: 4,
+    schemaType: 'ClothingStore',
   },
   clinic: {
     id: 'clinic',
@@ -71,6 +77,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Medical, dental & wellness clinics',
     icon: 'bi-heart-pulse',
     order: 5,
+    schemaType: 'MedicalClinic',
   },
   'real-estate': {
     id: 'real-estate',
@@ -78,6 +85,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Agencies & property services',
     icon: 'bi-house-door',
     order: 6,
+    schemaType: 'RealEstateAgent',
   },
   hotel: {
     id: 'hotel',
@@ -85,6 +93,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Hotels, stays & hospitality',
     icon: 'bi-buildings',
     order: 7,
+    schemaType: 'Hotel',
   },
   photography: {
     id: 'photography',
@@ -92,6 +101,7 @@ export const CATEGORY_REGISTRY: Record<string, CategoryMetadata> = {
     description: 'Photography & creative studios',
     icon: 'bi-camera',
     order: 8,
+    schemaType: 'PhotographyBusiness',
   },
 };
 

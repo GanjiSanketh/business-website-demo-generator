@@ -11,6 +11,7 @@ import {
   getDefaultTemplateForCategory,
 } from '../templates/template.registry';
 import { resolveThemeConfig, ThemeConfig } from '../themes/theme.registry';
+import { getCategoryById } from '../categories/category.registry';
 
 import '../templates/template.init';
 
@@ -72,12 +73,8 @@ export class DemoPageComponent implements OnInit, OnDestroy {
         this.notFound.set(true);
       } else {
         this.business.set(business);
-        // Set SEO
-        this.document.title = `${business.businessName} | Professional ${business.category || 'Business'}`;
-        const metaDesc = this.document.querySelector('meta[name="description"]');
-        if (metaDesc) {
-          metaDesc.setAttribute('content', business.description || business.tagline || '');
-        }
+        // Set all SEO metadata
+        this.setSeoMetadata(business, slug);
         // Render the template
         this.renderTemplate(business.templateId);
       }
@@ -92,6 +89,176 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** Set all SEO metadata for the page. */
+  private setSeoMetadata(business: Business, slug: string): void {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const pageUrl = origin ? `${origin}/demo/${slug}` : `/demo/${slug}`;
+
+    // --- Title ---
+    const title = business.seoTitle?.trim()
+      ? `${business.seoTitle} | ${business.businessName}`
+      : `${business.businessName} | Professional ${business.category || 'Business'}`;
+    this.document.title = title;
+
+    // --- Meta Description ---
+    const description = business.seoDescription?.trim() || business.description || business.tagline || '';
+    this.setMetaTag('name', 'description', description);
+
+    // --- Meta Keywords ---
+    if (business.seoKeywords?.trim()) {
+      this.setMetaTag('name', 'keywords', business.seoKeywords.trim());
+    }
+
+    // --- Open Graph ---
+    const ogTitle = business.seoTitle?.trim() || business.businessName;
+    const ogDescription = description;
+    const ogImage = business.socialImageUrl || business.logoUrl || business.images?.[0] || '';
+    const ogType = 'website';
+
+    this.setMetaTag('property', 'og:title', ogTitle);
+    this.setMetaTag('property', 'og:description', ogDescription);
+    if (ogImage) {
+      this.setMetaTag('property', 'og:image', ogImage);
+    }
+    this.setMetaTag('property', 'og:url', pageUrl);
+    this.setMetaTag('property', 'og:type', ogType);
+    this.setMetaTag('property', 'og:site_name', business.businessName);
+
+    // --- Twitter / X ---
+    const twitterCard = ogImage ? 'summary_large_image' : 'summary';
+    this.setMetaTag('name', 'twitter:card', twitterCard);
+    this.setMetaTag('name', 'twitter:title', ogTitle);
+    this.setMetaTag('name', 'twitter:description', ogDescription);
+    if (ogImage) {
+      this.setMetaTag('name', 'twitter:image', ogImage);
+    }
+
+    // --- Canonical URL ---
+    this.setLinkTag('canonical', pageUrl);
+
+    // --- Favicon ---
+    const faviconUrl = business.faviconUrl || business.logoUrl;
+    if (faviconUrl) {
+      this.setLinkTag('icon', faviconUrl);
+      this.setLinkTag('apple-touch-icon', faviconUrl);
+    }
+
+    // --- JSON-LD Structured Data ---
+    this.injectJsonLd(business, pageUrl, ogImage);
+  }
+
+  /** Helper to set/update a meta tag. */
+  private setMetaTag(attr: 'name' | 'property', key: string, content: string): void {
+    if (!content) return;
+    const selector = `meta[${attr}="${key}"]`;
+    let meta = this.document.querySelector(selector) as HTMLMetaElement | null;
+    if (!meta) {
+      meta = this.document.createElement('meta');
+      meta.setAttribute(attr, key);
+      this.document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', content);
+  }
+
+  /** Helper to set/update a link tag. */
+  private setLinkTag(rel: string, href: string): void {
+    if (!href) return;
+    const selector = `link[rel="${rel}"]`;
+    let link = this.document.querySelector(selector) as HTMLLinkElement | null;
+    if (!link) {
+      link = this.document.createElement('link');
+      link.setAttribute('rel', rel);
+      this.document.head.appendChild(link);
+    }
+    link.setAttribute('href', href);
+  }
+
+  /** Inject JSON-LD structured data. */
+  private injectJsonLd(business: Business, pageUrl: string, imageUrl: string): void {
+    const categoryMeta = getCategoryById(business.category);
+    const schemaType = categoryMeta?.schemaType || 'LocalBusiness';
+
+    // Build opening hours specification if available
+    const openingHours = this.buildOpeningHours(business.businessHours);
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': schemaType,
+      name: business.businessName,
+      description: business.seoDescription?.trim() || business.description || business.tagline || '',
+      url: pageUrl,
+      telephone: business.phone || undefined,
+      address: business.address ? {
+        '@type': 'PostalAddress',
+        streetAddress: business.address,
+      } : undefined,
+      image: imageUrl || undefined,
+      openingHours,
+      sameAs: this.buildSocialLinks(business),
+    };
+
+    // Remove undefined values
+    const cleanJsonLd = JSON.parse(JSON.stringify(jsonLd, (_, value) =>
+      value === undefined ? null : value
+    ));
+
+    // Remove null values
+    const removeNulls = (obj: any): any => {
+      if (Array.isArray(obj)) return obj.map(removeNulls).filter(v => v !== null);
+      if (obj && typeof obj === 'object') {
+        const cleaned: any = {};
+        for (const [k, v] of Object.entries(obj)) {
+          const cleanedV = removeNulls(v);
+          if (cleanedV !== null && cleanedV !== '' && !(Array.isArray(cleanedV) && cleanedV.length === 0)) {
+            cleaned[k] = cleanedV;
+          }
+        }
+        return Object.keys(cleaned).length ? cleaned : null;
+      }
+      return obj;
+    };
+
+    const finalJsonLd = removeNulls(cleanJsonLd);
+
+    const scriptSelector = 'script[type="application/ld+json"][data-seo="business"]';
+    let script = this.document.querySelector(scriptSelector) as HTMLScriptElement | null;
+    if (!script) {
+      script = this.document.createElement('script');
+      script.setAttribute('type', 'application/ld+json');
+      script.setAttribute('data-seo', 'business');
+      this.document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(finalJsonLd);
+  }
+
+  /** Build openingHours array from businessHours. */
+  private buildOpeningHours(businessHours?: Business['businessHours']): string[] | undefined {
+    if (!businessHours) return undefined;
+    const dayMap: Record<string, string> = {
+      monday: 'Mo',
+      tuesday: 'Tu',
+      wednesday: 'We',
+      thursday: 'Th',
+      friday: 'Fr',
+      saturday: 'Sa',
+      sunday: 'Su',
+    };
+    const hours: string[] = [];
+    for (const [day, key] of Object.entries(dayMap)) {
+      const dh = businessHours[day as keyof typeof businessHours];
+      if (dh && !dh.closed && dh.open && dh.close) {
+        hours.push(`${key} ${dh.open}-${dh.close}`);
+      }
+    }
+    return hours.length ? hours : undefined;
+  }
+
+  /** Build sameAs array from social links (if we add them later). */
+  private buildSocialLinks(business: Business): string[] | undefined {
+    // Placeholder for future social links field
+    return undefined;
   }
 
   private renderTemplate(templateId: string): void {

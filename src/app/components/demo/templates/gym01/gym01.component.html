@@ -1,0 +1,342 @@
+<header id="home" class="gym-header" [class.scrolled]="isScrolled">
+  <div class="header-inner">
+    <div class="logo" [attr.aria-label]="business.businessName + ' - Home'">
+      @if (business.logoUrl) {
+        <img [src]="business.logoUrl" [alt]="business.businessName" class="logo-img" />
+      } @else {
+        <span class="logo-text">{{ business.businessName }}</span>
+      }
+    </div>
+
+    <nav class="nav-desktop" aria-label="Main navigation">
+      <a href="#programs" class="nav-link" [class.active]="activeSection === 'programs'">Programs</a>
+      <a href="#benefits" class="nav-link" [class.active]="activeSection === 'benefits'">Benefits</a>
+      <a href="#gallery" class="nav-link" [class.active]="activeSection === 'gallery'">Gallery</a>
+      <a href="#contact" class="nav-link cta-nav" [class.active]="activeSection === 'contact'">Join Now</a>
+    </nav>
+
+    <button class="nav-toggle" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen" aria-label="Toggle menu">
+      @if (!mobileMenuOpen) {
+        <i class="bi bi-list"></i>
+      } @else {
+        <i class="bi bi-x-lg"></i>
+      }
+    </button>
+  </div>
+
+  @if (mobileMenuOpen) {
+    <div class="mobile-menu" @fadeIn>
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <a href="#programs" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('programs')">Programs</a>
+        <a href="#benefits" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('benefits')">Benefits</a>
+        <a href="#gallery" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('gallery')">Gallery</a>
+        <a href="#contact" class="mobile-nav-link cta-mobile" (click)="closeMobileMenu(); scrollTo('contact')">Join Now</a>
+      </nav>
+    </div>
+  }
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-bg" [style.background-image]="'url(' + heroImage + ')'" [class.has-image]="heroImage">
+      @if (heroImageError || !heroImage) {
+        <div class="hero-fallback" aria-hidden="true"></div>
+      }
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-inner">
+        <span class="hero-badge">Premium Fitness Club</span>
+        <h1 id="hero-title" class="hero-title">{{ business.businessName }}</h1>
+        <p class="hero-tagline">{{ business.tagline || 'Transform Your Body. Elevate Your Life.' }}</p>
+        <div class="hero-cta-group">
+          <a [href]="phoneUrl" class="btn btn-primary btn-lg" [attr.aria-label]="'Call ' + business.phone">
+            <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+            <span>Call {{ business.phone || 'Us Today' }}</span>
+          </a>
+          @if (business.whatsapp) {
+            <a [href]="whatsappUrl" class="btn btn-outline btn-lg" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp Us'">
+              <i class="bi bi-whatsapp" aria-hidden="true"></i>
+              <span>WhatsApp</span>
+            </a>
+          }
+        </div>
+        @if (business.address) {
+          <a [href]="mapsUrl" class="hero-location" target="_blank" rel="noopener">
+            <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+            <span>{{ business.address }}</span>
+          </a>
+        }
+      </div>
+    </div>
+    <div class="hero-scroll-indicator" aria-hidden="true">
+      <i class="bi bi-chevron-double-down"></i>
+    </div>
+  </section>
+
+  <!-- PROGRAMS -->
+  <section id="programs" class="section programs-section" aria-labelledby="programs-title">
+    <div class="container">
+      <header class="section-header">
+        <span class="section-eyebrow">Our Programs</span>
+        <h2 id="programs-title" class="section-title">Train with Purpose</h2>
+        <p class="section-description">Expertly designed programs for every goal and fitness level.</p>
+      </header>
+
+      <div class="programs-grid">
+        @for (program of displayPrograms; track $index; let i = $index) {
+          <article class="program-card" [class.featured]="i === 0">
+            <div class="program-icon" aria-hidden="true">
+              <i [class]="'bi ' + programIcon(i)"></i>
+            </div>
+            <h3 class="program-name">{{ program.name }}</h3>
+            @if (program.description) {
+              <p class="program-description">{{ program.description }}</p>
+            }
+            <a href="#contact" class="program-link" (click)="scrollTo('contact')">
+              Learn More <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+          </article>
+        }
+      </div>
+
+      <div class="section-cta">
+        <a href="#contact" class="btn btn-primary btn-lg" (click)="scrollTo('contact')">
+          <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+          View All Programs & Pricing
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- BENEFITS -->
+  <section id="benefits" class="section benefits-section" aria-labelledby="benefits-title">
+    <div class="container">
+      <header class="section-header">
+        <span class="section-eyebrow">Why Choose Us</span>
+        <h2 id="benefits-title" class="section-title">More Than a Gym</h2>
+        <p class="section-description">Everything you need to reach your peak, all under one roof.</p>
+      </header>
+
+      <div class="benefits-grid">
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-gem"></i>
+          </div>
+          <h3 class="benefit-title">Premium Equipment</h3>
+          <p class="benefit-text">State-of-the-art machines and free weights from top brands, maintained daily.</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-person-badge"></i>
+          </div>
+          <h3 class="benefit-title">Expert Trainers</h3>
+          <p class="benefit-text">Certified coaches with specializations in strength, mobility, and performance.</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-clock-history"></i>
+          </div>
+          <h3 class="benefit-title">24/7 Access</h3>
+          <p class="benefit-text">Train on your schedule with secure round-the-clock facility access.</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-people"></i>
+          </div>
+          <h3 class="benefit-title">Community</h3>
+          <p class="benefit-text">Join a supportive community of motivated members pushing each other forward.</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-heart-pulse"></i>
+          </div>
+          <h3 class="benefit-title">Recovery Zone</h3>
+          <p class="benefit-text">Dedicated space with foam rollers, stretching areas, and recovery tools.</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon" aria-hidden="true">
+            <i class="bi bi-wifi"></i>
+          </div>
+          <h3 class="benefit-title">App Integration</h3>
+          <p class="benefit-text">Track workouts, book classes, and monitor progress with our mobile app.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUSINESS HOURS -->
+  @if (hasBusinessHours) {
+    <section id="hours" class="section hours-section" aria-labelledby="hours-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Visit Us</span>
+          <h2 id="hours-title" class="section-title">Opening Hours</h2>
+        </header>
+        <div class="hours-grid">
+          @for (day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']; track day) {
+            <div class="hours-row" [class.closed]="!isDayOpen(day)">
+              <span class="hours-day">{{ day | titlecase }}</span>
+              <span class="hours-time">{{ formatDayHours(day) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- GALLERY -->
+  @if (galleryImages.length > 0) {
+    <section id="gallery" class="section gallery-section" aria-labelledby="gallery-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Our Space</span>
+          <h2 id="gallery-title" class="section-title">Training Environment</h2>
+        </header>
+        <div class="gallery-grid">
+          @for (image of galleryImages; track $index; let i = $index) {
+            <figure class="gallery-item" [class]="galleryClass(i)" (click)="openLightbox(i)" tabindex="0" (keydown.enter)="openLightbox(i)" role="button" [attr.aria-label]="'View gallery image ' + (i + 1)">
+              <img [src]="image" [alt]="'Facility view ' + (i + 1)" loading="lazy" (error)="onGalleryImageError(i)" />
+              <figcaption class="gallery-overlay">
+                <i class="bi bi-zoom-in" aria-hidden="true"></i>
+              </figcaption>
+            </figure>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- CONTACT / CTA -->
+  <section id="contact" class="section contact-section" aria-labelledby="contact-title">
+    <div class="container">
+      <div class="contact-grid">
+        <div class="contact-info">
+          <header class="section-header">
+            <span class="section-eyebrow">Get Started</span>
+            <h2 id="contact-title" class="section-title">Join {{ business.businessName }} Today</h2>
+            <p class="section-description">Your fitness journey begins with a single step. Let's take it together.</p>
+          </header>
+
+          <div class="contact-details">
+            @if (business.phone) {
+              <a [href]="phoneUrl" class="contact-item" [attr.aria-label]="'Call ' + business.phone">
+                <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                <span>{{ business.phone }}</span>
+              </a>
+            }
+            @if (business.whatsapp) {
+              <a [href]="whatsappUrl" class="contact-item" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp Us'">
+                <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                <span>WhatsApp Us</span>
+              </a>
+            }
+            @if (business.address) {
+              <a [href]="mapsUrl" class="contact-item" target="_blank" rel="noopener" [attr.aria-label]="'Get Directions'">
+                <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                <span>{{ business.address }}</span>
+              </a>
+            }
+          </div>
+
+          <div class="contact-cta">
+            <a [href]="phoneUrl" class="btn btn-primary btn-xl">
+              <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+              <span>Call Now to Join</span>
+            </a>
+            <p class="cta-note">No commitment tour available. Walk-ins welcome!</p>
+          </div>
+        </div>
+
+        <div class="contact-visual" [style.background-image]="'url(' + aboutImage + ')'" [class.has-image]="aboutImage" aria-hidden="true">
+          @if (aboutImageError || !aboutImage) {
+            <div class="visual-fallback" aria-hidden="true"></div>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MOBILE STICKY CTA -->
+@if (showMobileCta && hasContactInfo) {
+  <div class="mobile-cta-bar" role="region" aria-label="Quick contact actions">
+    @if (business.phone) {
+      <a [href]="phoneUrl" class="mobile-cta-btn primary" [attr.aria-label]="'Call ' + business.phone">
+        <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+        <span>Call</span>
+      </a>
+    }
+    @if (business.whatsapp) {
+      <a [href]="whatsappUrl" class="mobile-cta-btn secondary" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp'">
+        <i class="bi bi-whatsapp" aria-hidden="true"></i>
+        <span>WhatsApp</span>
+      </a>
+    }
+    @if (business.address) {
+      <a [href]="mapsUrl" class="mobile-cta-btn secondary" target="_blank" rel="noopener" [attr.aria-label]="'Directions'">
+        <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+        <span>Directions</span>
+      </a>
+    }
+    <a href="#contact" class="mobile-cta-btn primary" (click)="scrollTo('contact')">
+      <i class="bi bi-person-plus" aria-hidden="true"></i>
+      <span>Join</span>
+    </a>
+  </div>
+}
+
+<!-- LIGHTBOX -->
+@if (lightboxOpen && galleryImages.length > 0) {
+  <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true" aria-label="Image gallery">
+    <button class="lightbox-close" (click)="closeLightbox()" aria-label="Close gallery">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <button class="lightbox-nav prev" (click)="prevLightbox()" aria-label="Previous image">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <div class="lightbox-content">
+      <img [src]="galleryImages[lightboxIndex]" [alt]="'Gallery image ' + (lightboxIndex + 1)" />
+    </div>
+    <button class="lightbox-nav next" (click)="nextLightbox()" aria-label="Next image">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <div class="lightbox-caption">
+      <span>{{ lightboxIndex + 1 }} / {{ galleryImages.length }}</span>
+    </div>
+  </div>
+}
+
+<footer class="gym-footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        @if (business.logoUrl) {
+          <img [src]="business.logoUrl" [alt]="business.businessName" class="footer-logo" />
+        } @else {
+          <span class="footer-logo-text">{{ business.businessName }}</span>
+        }
+        <p class="footer-tagline">{{ business.tagline || 'Transform Your Body. Elevate Your Life.' }}</p>
+      </div>
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="#programs" (click)="scrollTo('programs')">Programs</a>
+        <a href="#benefits" (click)="scrollTo('benefits')">Benefits</a>
+        <a href="#gallery" (click)="scrollTo('gallery')">Gallery</a>
+        <a href="#contact" (click)="scrollTo('contact')">Contact</a>
+      </nav>
+      <div class="footer-contact">
+        <h4>Contact</h4>
+        @if (business.phone) {
+          <a [href]="phoneUrl" class="footer-link">{{ business.phone }}</a>
+        }
+        @if (business.address) {
+          <address class="footer-address">{{ business.address }}</address>
+        }
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; {{ currentYear }} {{ business.businessName }}. All rights reserved.</p>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,424 @@
+<header id="home" class="clothing2-header" [class.scrolled]="isScrolled">
+  <div class="header-inner">
+    <div class="logo" [attr.aria-label]="business.businessName + ' - Home'">
+      @if (business.logoUrl) {
+        <img [src]="business.logoUrl" [alt]="business.businessName" class="logo-img" />
+      } @else {
+        <span class="logo-text">{{ business.businessName }}</span>
+      }
+    </div>
+
+    <nav class="nav-desktop" aria-label="Main navigation">
+      <a href="#new-arrivals" class="nav-link" [class.active]="activeSection === 'new-arrivals'">New Arrivals</a>
+      <a href="#categories" class="nav-link" [class.active]="activeSection === 'categories'">Shop by Category</a>
+      <a href="#gallery" class="nav-link" [class.active]="activeSection === 'gallery'">Lookbook</a>
+      <a href="#contact" class="nav-link cta-nav" [class.active]="activeSection === 'contact'">Shop</a>
+    </nav>
+
+    <div class="header-actions">
+      <a href="#" class="header-action" aria-label="Search">
+        <i class="bi bi-search"></i>
+      </a>
+      <a href="#" class="header-action" aria-label="Account">
+        <i class="bi bi-person"></i>
+      </a>
+      <a href="#" class="header-action cart" aria-label="Cart (0)">
+        <i class="bi bi-bag"></i>
+        <span class="cart-count">0</span>
+      </a>
+      <button class="nav-toggle" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen" aria-label="Toggle menu">
+        @if (!mobileMenuOpen) {
+          <i class="bi bi-list"></i>
+        } @else {
+          <i class="bi bi-x-lg"></i>
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (mobileMenuOpen) {
+    <div class="mobile-menu" @fadeIn>
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <a href="#new-arrivals" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('new-arrivals')">New Arrivals</a>
+        <a href="#categories" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('categories')">Categories</a>
+        <a href="#gallery" class="mobile-nav-link" (click)="closeMobileMenu(); scrollTo('gallery')">Lookbook</a>
+        <a href="#contact" class="mobile-nav-link cta-mobile" (click)="closeMobileMenu(); scrollTo('contact')">Shop</a>
+      </nav>
+    </div>
+  }
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-content">
+      <span class="hero-badge">New Season Collection</span>
+      <h1 id="hero-title" class="hero-title">{{ business.businessName }}</h1>
+      <p class="hero-tagline">{{ business.tagline || 'Modern Essentials for Every Day' }}</p>
+      <p class="hero-description">{{ displayDescription }}</p>
+      <div class="hero-cta-group">
+        <a href="#new-arrivals" class="btn btn-primary btn-lg" (click)="scrollTo('new-arrivals')">
+          Shop New Arrivals
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+        <a href="#categories" class="btn btn-secondary btn-lg" (click)="scrollTo('categories')">
+          Explore Categories
+        </a>
+      </div>
+      @if (business.address) {
+        <a [href]="mapsUrl" class="hero-location" target="_blank" rel="noopener">
+          <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+          <span>Visit Our Store: {{ business.address }}</span>
+        </a>
+      }
+    </div>
+    <div class="hero-visual" [style.background-image]="'url(' + heroImage + ')'" [class.has-image]="heroImage" aria-hidden="true">
+      @if (heroImageError || !heroImage) {
+        <div class="visual-fallback"></div>
+      }
+    </div>
+    <div class="hero-scroll-indicator" aria-hidden="true">
+      <i class="bi bi-chevron-double-down"></i>
+    </div>
+  </section>
+
+  <!-- ANNOUNCEMENT BAR -->
+  <div class="announcement-bar">
+    <div class="announcement-content">
+      <span class="announcement-icon"><i class="bi bi-truck" aria-hidden="true"></i></span>
+      <span>Free shipping on orders over $150</span>
+      <span class="announcement-divider" aria-hidden="true">|</span>
+      <span class="announcement-icon"><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span>
+      <span>30-day easy returns</span>
+      <span class="announcement-divider" aria-hidden="true">|</span>
+      <span class="announcement-icon"><i class="bi bi-gift" aria-hidden="true"></i></span>
+      <span>Gift wrapping available</span>
+    </div>
+  </div>
+
+  <!-- NEW ARRIVALS -->
+  <section id="new-arrivals" class="section products-section" aria-labelledby="new-arrivals-title">
+    <div class="container">
+      <header class="section-header">
+        <span class="section-eyebrow">Just In</span>
+        <h2 id="new-arrivals-title" class="section-title">New Arrivals</h2>
+        <p class="section-description">Fresh pieces to elevate your wardrobe this season.</p>
+      </header>
+
+      <div class="products-grid">
+        @for (product of displayProducts; track $index; let i = $index) {
+          <article class="product-card" [class.featured]="i < 2">
+            <figure class="product-image" [style.background-image]="product.image ? 'url(' + product.image + ')' : ''" [class.has-image]="product.image" aria-hidden="true">
+              @if (!product.image) {
+                <div class="image-placeholder"></div>
+              }
+              @if (product.badge) {
+                <span class="product-badge">{{ product.badge }}</span>
+              }
+              <figcaption class="product-overlay">
+                <a href="#contact" class="quick-view" (click)="scrollTo('contact')">Quick View</a>
+              </figcaption>
+            </figure>
+            <div class="product-info">
+              <h3 class="product-name">{{ product.name }}</h3>
+              <p class="product-price">{{ product.price }}</p>
+            </div>
+          </article>
+        }
+      </div>
+
+      <div class="section-cta">
+        <a href="#contact" class="btn btn-primary" (click)="scrollTo('contact')">
+          View All New Arrivals
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="categories" class="section categories-section" aria-labelledby="categories-title">
+    <div class="container">
+      <header class="section-header">
+        <span class="section-eyebrow">Shop by Category</span>
+        <h2 id="categories-title" class="section-title">Explore Collections</h2>
+        <p class="section-description">Curated edits for every occasion and style.</p>
+      </header>
+
+      <div class="categories-grid">
+        @for (category of displayCategories; track $index; let i = $index) {
+          <article class="category-card" [style.background-image]="(business.images && business.images[i + 2]) ? 'url(' + business.images[i + 2] + ')' : ''" [class.has-image]="!!(business.images && business.images[i + 2])" (click)="scrollTo('new-arrivals')" tabindex="0" (keydown.enter)="scrollTo('new-arrivals')" role="button" [attr.aria-label]="'Shop ' + category">
+            <div class="category-overlay">
+              <h3 class="category-name">{{ category }}</h3>
+              <span class="category-count">{{ (i + 1) * 12 }}+ Styles</span>
+              <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES / BENEFITS -->
+  <section class="section features-section" aria-labelledby="features-title">
+    <div class="container">
+      <header class="section-header">
+        <span class="section-eyebrow">Why Shop With Us</span>
+        <h2 id="features-title" class="section-title">Quality You Can Feel</h2>
+      </header>
+
+      <div class="features-grid">
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="bi bi-gem"></i>
+          </div>
+          <h3 class="feature-title">Premium Fabrics</h3>
+          <p class="feature-text">Sourced from the world's finest mills — organic cotton, merino wool, silk, and linen.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="bi bi-recycle"></i>
+          </div>
+          <h3 class="feature-title">Sustainable Practices</h3>
+          <p class="feature-text">Responsible production, recycled packaging, and carbon-neutral shipping options.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <h3 class="feature-title">Quality Guarantee</h3>
+          <p class="feature-text">Every piece inspected. If you're not satisfied, we'll make it right — no questions asked.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="bi bi-heart"></i>
+          </div>
+          <h3 class="feature-title">Style Support</h3>
+          <p class="feature-text">Free virtual styling sessions. Our team helps you build a wardrobe you love.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUSINESS HOURS -->
+  @if (hasBusinessHours) {
+    <section id="hours" class="section hours-section" aria-labelledby="hours-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Visit Our Boutique</span>
+          <h2 id="hours-title" class="section-title">Opening Hours</h2>
+        </header>
+        <div class="hours-grid">
+          @for (day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']; track day) {
+            <div class="hours-row" [class.closed]="!isDayOpen(day)">
+              <span class="hours-day">{{ day | titlecase }}</span>
+              <span class="hours-time">{{ formatDayHours(day) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- GALLERY / LOOKBOOK -->
+  @if (galleryImages.length > 0) {
+    <section id="gallery" class="section gallery-section" aria-labelledby="gallery-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Lookbook</span>
+          <h2 id="gallery-title" class="section-title">Styled Looks</h2>
+          <p class="section-description">See how our community wears the collection.</p>
+        </header>
+        <div class="gallery-grid">
+          @for (image of galleryImages; track $index; let i = $index) {
+            <figure class="gallery-item" (click)="openLightbox(i)" tabindex="0" (keydown.enter)="openLightbox(i)" role="button" [attr.aria-label]="'View lookbook image ' + (i + 1)">
+              <img [src]="image" [alt]="'Styled look ' + (i + 1)" loading="lazy" (error)="onGalleryImageError(i)" />
+              <figcaption class="gallery-overlay">
+                <i class="bi bi-zoom-in" aria-hidden="true"></i>
+              </figcaption>
+            </figure>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- CONTACT / NEWSLETTER -->
+  <section id="contact" class="section contact-section" aria-labelledby="contact-title">
+    <div class="container">
+      <div class="contact-grid">
+        <div class="contact-info">
+          <header class="section-header" style="text-align: left; margin-bottom: 2rem;">
+            <span class="section-eyebrow">Stay Connected</span>
+            <h2 id="contact-title" class="section-title">Join the Community</h2>
+            <p class="section-description">Subscribe for early access to new drops, styling tips, and exclusive offers.</p>
+          </header>
+
+          <form class="newsletter-form" (submit)="onNewsletterSubmit($event)">
+            <div class="form-group">
+              <label for="email" class="visually-hidden">Email address</label>
+              <input type="email" id="email" placeholder="Enter your email" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-envelope" aria-hidden="true"></i>
+              <span>Subscribe</span>
+            </button>
+            <p class="form-note">We respect your privacy. Unsubscribe anytime.</p>
+          </form>
+
+          <div class="contact-details">
+            @if (business.phone) {
+              <a [href]="phoneUrl" class="contact-item" [attr.aria-label]="'Call ' + business.phone">
+                <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                <span>{{ business.phone }}</span>
+              </a>
+            }
+            @if (business.whatsapp) {
+              <a [href]="whatsappUrl" class="contact-item" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp Us'">
+                <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                <span>WhatsApp</span>
+              </a>
+            }
+            @if (business.address) {
+              <a [href]="mapsUrl" class="contact-item" target="_blank" rel="noopener" [attr.aria-label]="'Get Directions'">
+                <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                <span>{{ business.address }}</span>
+              </a>
+            }
+          </div>
+        </div>
+
+        <div class="contact-visual" [style.background-image]="'url(' + aboutImage + ')'" [class.has-image]="aboutImage" aria-hidden="true">
+          @if (aboutImageError || !aboutImage) {
+            <div class="visual-fallback"></div>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MOBILE STICKY CTA -->
+@if (showMobileCta && hasContactInfo) {
+  <div class="mobile-cta-bar" role="region" aria-label="Quick contact actions">
+    <a href="#" class="mobile-cta-btn secondary" aria-label="Search">
+      <i class="bi bi-search" aria-hidden="true"></i>
+    </a>
+    @if (business.phone) {
+      <a [href]="phoneUrl" class="mobile-cta-btn secondary" [attr.aria-label]="'Call ' + business.phone">
+        <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+      </a>
+    }
+    @if (business.whatsapp) {
+      <a [href]="whatsappUrl" class="mobile-cta-btn secondary" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp'">
+        <i class="bi bi-whatsapp" aria-hidden="true"></i>
+      </a>
+    }
+    <a href="#" class="mobile-cta-btn primary cart" aria-label="Cart">
+      <i class="bi bi-bag" aria-hidden="true"></i>
+      <span class="cart-count">0</span>
+    </a>
+  </div>
+}
+
+<!-- LIGHTBOX -->
+@if (lightboxOpen && galleryImages.length > 0) {
+  <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true" aria-label="Image gallery">
+    <button class="lightbox-close" (click)="closeLightbox()" aria-label="Close gallery">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <button class="lightbox-nav prev" (click)="prevLightbox()" aria-label="Previous image">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <div class="lightbox-content">
+      <img [src]="galleryImages[lightboxIndex]" [alt]="'Gallery image ' + (lightboxIndex + 1)" />
+    </div>
+    <button class="lightbox-nav next" (click)="nextLightbox()" aria-label="Next image">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <div class="lightbox-caption">
+      <span>{{ lightboxIndex + 1 }} / {{ galleryImages.length }}</span>
+    </div>
+  </div>
+}
+
+<footer class="clothing2-footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-top">
+      <form class="footer-newsletter" (submit)="onNewsletterSubmit($event)">
+        <h3>Stay In Style</h3>
+        <p>Get 10% off your first order when you subscribe.</p>
+        <div class="form-group">
+          <input type="email" placeholder="Email address" required />
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        @if (business.logoUrl) {
+          <img [src]="business.logoUrl" [alt]="business.businessName" class="footer-logo" />
+        } @else {
+          <span class="footer-logo-text">{{ business.businessName }}</span>
+        }
+        <p class="footer-tagline">{{ business.tagline || 'Modern Essentials for Every Day' }}</p>
+      </div>
+      <nav class="footer-nav" aria-label="Shop">
+        <h4>Shop</h4>
+        <a href="#new-arrivals" (click)="scrollTo('new-arrivals')">New Arrivals</a>
+        <a href="#categories" (click)="scrollTo('categories')">All Categories</a>
+        <a href="#">Best Sellers</a>
+        <a href="#">Gift Cards</a>
+      </nav>
+      <nav class="footer-nav" aria-label="Support">
+        <h4>Support</h4>
+        <a href="#">Shipping & Returns</a>
+        <a href="#">Size Guide</a>
+        <a href="#">Track Order</a>
+        <a href="#contact" (click)="scrollTo('contact')">Contact Us</a>
+      </nav>
+      <nav class="footer-nav" aria-label="Company">
+        <h4>Company</h4>
+        <a href="#">About Us</a>
+        <a href="#">Sustainability</a>
+        <a href="#">Careers</a>
+        <a href="#">Press</a>
+      </nav>
+      <div class="footer-contact">
+        <h4>Contact</h4>
+        @if (business.phone) {
+          <a [href]="phoneUrl" class="footer-link">{{ business.phone }}</a>
+        }
+        @if (business.address) {
+          <address class="footer-address">{{ business.address }}</address>
+        }
+        <div class="footer-social">
+          <a href="#" class="social-link" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
+          <a href="#" class="social-link" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
+          <a href="#" class="social-link" aria-label="Pinterest"><i class="bi bi-pinterest"></i></a>
+          <a href="#" class="social-link" aria-label="Email"><i class="bi bi-envelope"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; {{ currentYear }} {{ business.businessName }}. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- VISUALLY HIDDEN UTILITY -->
+<style>
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

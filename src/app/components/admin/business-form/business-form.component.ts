@@ -25,7 +25,7 @@ import { ActivatedRoute, Router, RouterModule, CanDeactivate } from '@angular/ro
 import { BusinessService } from '../../../services/business.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotService } from '../../../services/screenshot.service';
-import { Business, ServiceItem, normalizeServices, servicesToNames } from '../../../models/business.model';
+import { Business, ServiceItem, BusinessHours, DayHours, normalizeServices, servicesToNames } from '../../../models/business.model';
 import {
   getDefaultTemplateForCategory,
   getDefaultThemeForTemplate,
@@ -42,6 +42,7 @@ import {
   getCategoryDisplayName,
   getTemplateCountForCategory,
   normalizeCategoryKey,
+  getCategoryById,
 } from '../../demo/categories/category.registry';
 import {
   BUTTON_STYLE_OPTIONS,
@@ -87,13 +88,20 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   removedExistingImages = signal<string[]>([]);
   dragOverLogo = signal(false);
   dragOverImages = signal(false);
+  // Settings: favicon & social image
+  faviconPreview = signal<string>('');
+  faviconFile = signal<File | null>(null);
+  dragOverFavicon = signal(false);
+  socialImagePreview = signal<string>('');
+  socialImageFile = signal<File | null>(null);
+  dragOverSocialImage = signal(false);
   copySuccess = signal(false);
   private formPristine = true;
 
   // ---- Builder workspace (edit mode) ----
   /** true when rendered through /admin/business/:id/edit. */
   builderLayout = signal(false);
-  builderSection = signal<'info' | 'design' | 'content'>('info');
+  builderSection = signal<'info' | 'design' | 'content' | 'settings'>('info');
   builderDevice = signal<'desktop' | 'tablet' | 'mobile'>('desktop');
   savedState = signal<'saved' | 'dirty' | 'saving'>('saved');
   notFoundBusiness = signal(false);
@@ -109,6 +117,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     },
     { id: 'design', icon: 'bi-layout-text-window-reverse', label: 'Design', hint: 'Website design & style' },
     { id: 'content', icon: 'bi-images', label: 'Content', hint: 'Services, logo & photos' },
+    { id: 'settings', icon: 'bi-gear', label: 'Settings', hint: 'SEO, hours & branding' },
   ] as const;
   private builderRef: ComponentRef<{ business: Business; theme?: ThemeConfig }> | null =
     null;
@@ -329,7 +338,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   // ============ BUILDER WORKSPACE (edit mode) ============
 
   /** Builder section navigation. Opening Design kicks off thumbnail renders. */
-  setBuilderSection(section: 'info' | 'design' | 'content'): void {
+  setBuilderSection(section: 'info' | 'design' | 'content' | 'settings'): void {
     this.builderSection.set(section);
     this.panelOpen.set(false);
     if (section === 'design') {
@@ -337,7 +346,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  setBuilderSectionOnKey(event: KeyboardEvent, section: 'info' | 'design' | 'content'): void {
+  setBuilderSectionOnKey(event: KeyboardEvent, section: 'info' | 'design' | 'content' | 'settings'): void {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       this.setBuilderSection(section);
@@ -540,11 +549,31 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       buttonStyle: [''],
       heroStyle: [''],
       galleryStyle: [''],
+      // SEO settings
+      seoTitle: [''],
+      seoDescription: [''],
+      seoKeywords: [''],
+      // Website settings
+      slug: [''],
+      // Business hours
+      businessHours: this.fb.group({
+        monday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        tuesday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        wednesday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        thursday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        friday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        saturday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [false] }),
+        sunday: this.fb.group({ open: ['10:00'], close: ['20:00'], closed: [true] }),
+      }),
     });
 
     // Watch for form changes
     this.form.valueChanges.subscribe(() => {
       this.formPristine = false;
+      if (this.builderLayout() && this.builderPreviewReady && !this.saving()) {
+        this.savedState.set('dirty');
+        this.scheduleBuilderPreview();
+      }
     });
   }
 
@@ -643,6 +672,22 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         buttonStyle: business.themeOptions?.buttonStyle || '',
         heroStyle: business.themeOptions?.heroStyle || '',
         galleryStyle: business.themeOptions?.galleryStyle || '',
+        // SEO settings
+        seoTitle: business.seoTitle || '',
+        seoDescription: business.seoDescription || '',
+        seoKeywords: business.seoKeywords || '',
+        // Website settings
+        slug: business.slug || '',
+        // Business hours
+        businessHours: business.businessHours || {
+          monday: { open: '10:00', close: '20:00', closed: false },
+          tuesday: { open: '10:00', close: '20:00', closed: false },
+          wednesday: { open: '10:00', close: '20:00', closed: false },
+          thursday: { open: '10:00', close: '20:00', closed: false },
+          friday: { open: '10:00', close: '20:00', closed: false },
+          saturday: { open: '10:00', close: '20:00', closed: false },
+          sunday: { open: '10:00', close: '20:00', closed: true },
+        },
       });
       this.suppressTemplateAutoSelect = false;
 
@@ -653,6 +698,12 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
 
       if (business.logoUrl) {
         this.logoPreview.set(business.logoUrl);
+      }
+      if (business.faviconUrl) {
+        this.faviconPreview.set(business.faviconUrl);
+      }
+      if (business.socialImageUrl) {
+        this.socialImagePreview.set(business.socialImageUrl);
       }
       if (business.images) {
         this.imagePreviews.set([...business.images]);
@@ -817,6 +868,112 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     this.markUnsavedBuilderChanges();
   }
 
+  // Favicon drag & drop
+  onFaviconDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverFavicon.set(true);
+  }
+
+  onFaviconDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverFavicon.set(false);
+  }
+
+  onFaviconDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverFavicon.set(false);
+
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
+      this.processFaviconFile(files[0]);
+    }
+  }
+
+  onFaviconChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    this.processFaviconFile(input.files[0]);
+  }
+
+  private processFaviconFile(file: File): void {
+    const validation = this.storageService.validateFile(file);
+    if (!validation.valid) {
+      this.errorMessage.set(validation.error!);
+      return;
+    }
+
+    this.faviconFile.set(file);
+    this.errorMessage.set('');
+    this.formPristine = false;
+
+    const reader = new FileReader();
+    reader.onload = (e) => this.faviconPreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+    this.markUnsavedBuilderChanges();
+  }
+
+  removeFavicon(): void {
+    this.faviconPreview.set('');
+    this.faviconFile.set(null);
+    this.markUnsavedBuilderChanges();
+  }
+
+  // Social image drag & drop
+  onSocialImageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverSocialImage.set(true);
+  }
+
+  onSocialImageDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverSocialImage.set(false);
+  }
+
+  onSocialImageDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverSocialImage.set(false);
+
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
+      this.processSocialImageFile(files[0]);
+    }
+  }
+
+  onSocialImageChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    this.processSocialImageFile(input.files[0]);
+  }
+
+  private processSocialImageFile(file: File): void {
+    const validation = this.storageService.validateFile(file);
+    if (!validation.valid) {
+      this.errorMessage.set(validation.error!);
+      return;
+    }
+
+    this.socialImageFile.set(file);
+    this.errorMessage.set('');
+    this.formPristine = false;
+
+    const reader = new FileReader();
+    reader.onload = (e) => this.socialImagePreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+    this.markUnsavedBuilderChanges();
+  }
+
+  removeSocialImage(): void {
+    this.socialImagePreview.set('');
+    this.socialImageFile.set(null);
+    this.markUnsavedBuilderChanges();
+  }
+
   async onSubmit(status?: 'draft' | 'published'): Promise<void> {
     // Read status from the form if not explicitly passed
     const formStatus = status || this.form.get('status')?.value || 'draft';
@@ -872,21 +1029,25 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     try {
       const formValue = this.form.value;
 
-      // Generate slug
-      const slug = this.businessService.generateSlug(formValue.businessName);
+      // Generate slug - use user-provided slug from Settings if available, otherwise auto-generate from business name
+      const userSlug = formValue.slug?.trim();
+      const baseSlug = userSlug || this.businessService.generateSlug(formValue.businessName);
+
+      // Normalize slug format
+      const normalizedSlug = this.businessService.generateSlug(baseSlug);
 
       // Check slug uniqueness
-      let finalSlug = slug;
+      let finalSlug = normalizedSlug;
       if (!this.isEditMode()) {
-        const isUnique = await this.businessService.isSlugUnique(slug);
+        const isUnique = await this.businessService.isSlugUnique(normalizedSlug);
         if (!isUnique) {
-          const uniqueSlug = await this.businessService.generateUniqueSlug(slug);
+          const uniqueSlug = await this.businessService.generateUniqueSlug(normalizedSlug);
           finalSlug = uniqueSlug;
         }
       } else {
-        const isUnique = await this.businessService.isSlugUnique(slug, this.businessId());
+        const isUnique = await this.businessService.isSlugUnique(normalizedSlug, this.businessId());
         if (!isUnique) {
-          const uniqueSlug = await this.businessService.generateUniqueSlug(slug, this.businessId());
+          const uniqueSlug = await this.businessService.generateUniqueSlug(normalizedSlug, this.businessId());
           finalSlug = uniqueSlug;
         }
       }
@@ -923,6 +1084,12 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         status: formStatus,
         themeId: formValue.themeId || undefined,
         themeOptions: Object.keys(themeOptions).length > 0 ? themeOptions : undefined,
+        // SEO settings
+        seoTitle: formValue.seoTitle?.trim() || undefined,
+        seoDescription: formValue.seoDescription?.trim() || undefined,
+        seoKeywords: formValue.seoKeywords?.trim() || undefined,
+        // Business hours
+        businessHours: formValue.businessHours || undefined,
       };
 
       let businessId = this.businessId();
@@ -940,6 +1107,18 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       if (this.logoFile()) {
         const logoUrl = await this.storageService.uploadLogo(businessId, this.logoFile()!);
         await this.businessService.updateBusiness(businessId, { logoUrl });
+      }
+
+      // Upload favicon
+      if (this.faviconFile()) {
+        const faviconUrl = await this.storageService.uploadImage(businessId, this.faviconFile()!);
+        await this.businessService.updateBusiness(businessId, { faviconUrl });
+      }
+
+      // Upload social image
+      if (this.socialImageFile()) {
+        const socialImageUrl = await this.storageService.uploadImage(businessId, this.socialImageFile()!);
+        await this.businessService.updateBusiness(businessId, { socialImageUrl });
       }
 
       // Upload new images
@@ -985,6 +1164,8 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
 
       // Clear file inputs
       this.logoFile.set(null);
+      this.faviconFile.set(null);
+      this.socialImageFile.set(null);
       this.imageFiles.set([]);
       this.removedExistingImages.set([]);
       this.formPristine = true;
@@ -1105,6 +1286,37 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   removeLogo(): void {
     this.logoPreview.set('');
     this.logoFile.set(null);
+    this.markUnsavedBuilderChanges();
+  }
+
+  /** Origin for slug display (safe for SSR). */
+  get windowLocationOrigin(): string {
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  }
+
+  // ============ BUSINESS HOURS HELPERS ============
+
+  /** Ordered days for the hours editor. */
+  readonly hourDays: { key: keyof BusinessHours; label: string }[] = [
+    { key: 'monday', label: 'Monday' },
+    { key: 'tuesday', label: 'Tuesday' },
+    { key: 'wednesday', label: 'Wednesday' },
+    { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' },
+    { key: 'saturday', label: 'Saturday' },
+    { key: 'sunday', label: 'Sunday' },
+  ];
+
+  /** Get the FormGroup for a specific day's hours. */
+  getHoursControl(day: keyof BusinessHours): FormGroup {
+    return this.form.get('businessHours')?.get(day) as FormGroup;
+  }
+
+  /** Toggle a day's open/closed state. */
+  toggleDayClosed(day: keyof BusinessHours): void {
+    const control = this.getHoursControl(day);
+    const currentlyClosed = control.get('closed')?.value;
+    control.patchValue({ closed: !currentlyClosed });
     this.markUnsavedBuilderChanges();
   }
 
@@ -1512,6 +1724,15 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       status: 'draft',
       themeId: this.selectedThemeId || undefined,
       themeOptions: this.currentThemeOptions(),
+      // SEO settings
+      seoTitle: value.seoTitle?.trim() || undefined,
+      seoDescription: value.seoDescription?.trim() || undefined,
+      seoKeywords: value.seoKeywords?.trim() || undefined,
+      // Website settings
+      socialImageUrl: this.socialImagePreview() || undefined,
+      faviconUrl: this.faviconPreview() || undefined,
+      // Business hours
+      businessHours: value.businessHours || undefined,
     };
 
     if (this.logoPreview()) {
