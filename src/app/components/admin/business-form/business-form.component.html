@@ -591,13 +591,30 @@
                       <div class="b-panel-head">
                         <h2>Content & Media</h2>
                         <p>
-                          Services appear as offerings on your website; photos
-                          power the hero, about section and gallery.
+                          Everything that appears on your website — services,
+                          photos, testimonials, FAQ and more.
                         </p>
                       </div>
 
+                      <nav class="b-subnav" aria-label="Content sections">
+                        @for (sub of contentSubSections; track sub.id) {
+                          <button
+                            type="button"
+                            class="b-subnav-btn"
+                            [class.active]="contentSection() === sub.id"
+                            [attr.aria-pressed]="contentSection() === sub.id"
+                            (click)="setContentSection(sub.id)"
+                            (keydown)="setContentSectionOnKey($event, sub.id)"
+                          >
+                            <i [class]="'bi ' + sub.icon" aria-hidden="true"></i>
+                            <span>{{ sub.label }}</span>
+                          </button>
+                        }
+                      </nav>
+
                       <!-- SERVICES / OFFERINGS -->
-                      <div class="b-block-title">{{ contentLabel('services') }}</div>
+                      @if (contentSection() === 'services') {
+                        <div class="b-block-title">{{ contentLabel('services') }}</div>
                       <div class="services-list">
                         @for (service of serviceGroups; track $index; let i = $index) {
                           <div class="service-item" [formGroup]="service">
@@ -660,8 +677,11 @@
                         Add service
                       </button>
 
+                      }
+
                       <!-- GALLERY -->
-                      <div class="b-block-title b-block-title-gap">{{ contentLabel('gallery') }}</div>
+                      @if (contentSection() === 'gallery') {
+                        <div class="b-block-title b-block-title-gap">{{ contentLabel('gallery') }}</div>
                       <p class="b-field-hint">
                         The first photo becomes the cover/hero image. Drag to reorder (first = hero).
                       </p>
@@ -767,6 +787,397 @@
                         (change)="onLogoChange($event)"
                         hidden
                       />
+                      }
+
+                      <!-- TESTIMONIALS -->
+                      @if (contentSection() === 'testimonials') {
+                        <div class="b-block-title b-block-title-gap">Testimonials</div>
+                        <p class="b-field-hint">
+                          Reviews from happy customers. They appear on your website
+                          only when at least one is added.
+                        </p>
+                        <div class="testimonials-list">
+                          @for (t of testimonialGroups; track $index; let i = $index) {
+                            <div class="testimonial-item" [formGroup]="t">
+                              <div class="testimonial-fields">
+                                <div class="testimonial-row">
+                                  <input
+                                    type="text"
+                                    class="testimonial-name-input"
+                                    formControlName="name"
+                                    placeholder="Customer name"
+                                    [attr.aria-label]="'Testimonial ' + (i + 1) + ' name'"
+                                  />
+                                  <input
+                                    type="text"
+                                    class="testimonial-role-input"
+                                    formControlName="role"
+                                    placeholder="Role (optional)"
+                                    [attr.aria-label]="'Testimonial ' + (i + 1) + ' role'"
+                                  />
+                                </div>
+                                <textarea
+                                  class="testimonial-quote-input"
+                                  formControlName="quote"
+                                  placeholder="What did they say?"
+                                  rows="2"
+                                  [attr.aria-label]="'Testimonial ' + (i + 1) + ' quote'"
+                                ></textarea>
+                                <div class="testimonial-meta">
+                                  <div
+                                    class="rating-picker"
+                                    role="radiogroup"
+                                    [attr.aria-label]="'Testimonial ' + (i + 1) + ' rating'"
+                                  >
+                                    @for (star of [1, 2, 3, 4, 5]; track star) {
+                                      <button
+                                        type="button"
+                                        class="rating-star"
+                                        [class.active]="(t.get('rating')?.value || 0) >= star"
+                                        (click)="setTestimonialRating(i, star)"
+                                        [attr.aria-label]="star + ' out of 5 stars'"
+                                        [attr.aria-pressed]="(t.get('rating')?.value || 0) === star"
+                                      >
+                                        <i class="bi bi-star-fill" aria-hidden="true"></i>
+                                      </button>
+                                    }
+                                  </div>
+                                  @if (t.get('imageUrl')?.value) {
+                                    <div class="testimonial-photo">
+                                      <img
+                                        [src]="t.get('imageUrl')?.value"
+                                        alt=""
+                                        class="testimonial-photo-img"
+                                      />
+                                      <button
+                                        type="button"
+                                        class="btn-remove-photo"
+                                        (click)="removeTestimonialImage(i)"
+                                        [attr.aria-label]="'Remove photo for testimonial ' + (i + 1)"
+                                        title="Remove photo"
+                                      >
+                                        <i class="bi bi-x-lg"></i>
+                                      </button>
+                                    </div>
+                                  } @else {
+                                    <label class="btn-photo-upload">
+                                      <i class="bi bi-camera" aria-hidden="true"></i>
+                                      <span>Photo</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        (change)="onTestimonialImageChange($event, i)"
+                                        hidden
+                                      />
+                                    </label>
+                                  }
+                                </div>
+                              </div>
+                              <div
+                                class="service-actions"
+                                role="group"
+                                [attr.aria-label]="'Testimonial ' + (i + 1) + ' actions'"
+                              >
+                                <button
+                                  type="button"
+                                  class="btn-move"
+                                  (click)="moveTestimonialUp(i)"
+                                  [disabled]="i === 0"
+                                  [attr.aria-label]="'Move testimonial ' + (i + 1) + ' up'"
+                                  title="Move up"
+                                >
+                                  <i class="bi bi-chevron-up"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn-move"
+                                  (click)="moveTestimonialDown(i)"
+                                  [disabled]="i === testimonials.length - 1"
+                                  [attr.aria-label]="'Move testimonial ' + (i + 1) + ' down'"
+                                  title="Move down"
+                                >
+                                  <i class="bi bi-chevron-down"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn-remove"
+                                  (click)="removeTestimonial(i)"
+                                  [attr.aria-label]="'Remove testimonial ' + (i + 1)"
+                                  title="Remove testimonial"
+                                >
+                                  <i class="bi bi-x-lg"></i>
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                        @if (testimonials.length === 0) {
+                          <p class="b-field-hint empty-hint">
+                            No testimonials yet. Click "Add testimonial" to get started.
+                          </p>
+                        }
+                        <button type="button" class="btn-add-service" (click)="addTestimonial()">
+                          <i class="bi bi-plus-lg"></i>
+                          Add testimonial
+                        </button>
+                      }
+
+                      <!-- FAQ -->
+                      @if (contentSection() === 'faqs') {
+                        <div class="b-block-title b-block-title-gap">FAQ</div>
+                        <p class="b-field-hint">
+                          Frequently asked questions, shown as an expandable list on
+                          your website.
+                        </p>
+                        <div class="faq-list">
+                          @for (f of faqGroups; track $index; let i = $index) {
+                            <div class="faq-item" [formGroup]="f">
+                              <div class="faq-fields">
+                                <input
+                                  type="text"
+                                  class="faq-question-input"
+                                  formControlName="question"
+                                  placeholder="Question"
+                                  [attr.aria-label]="'FAQ ' + (i + 1) + ' question'"
+                                />
+                                <textarea
+                                  class="faq-answer-input"
+                                  formControlName="answer"
+                                  placeholder="Answer"
+                                  rows="2"
+                                  [attr.aria-label]="'FAQ ' + (i + 1) + ' answer'"
+                                ></textarea>
+                              </div>
+                              <div
+                                class="service-actions"
+                                role="group"
+                                [attr.aria-label]="'FAQ ' + (i + 1) + ' actions'"
+                              >
+                                <button
+                                  type="button"
+                                  class="btn-move"
+                                  (click)="moveFaqUp(i)"
+                                  [disabled]="i === 0"
+                                  [attr.aria-label]="'Move FAQ ' + (i + 1) + ' up'"
+                                  title="Move up"
+                                >
+                                  <i class="bi bi-chevron-up"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn-move"
+                                  (click)="moveFaqDown(i)"
+                                  [disabled]="i === faqs.length - 1"
+                                  [attr.aria-label]="'Move FAQ ' + (i + 1) + ' down'"
+                                  title="Move down"
+                                >
+                                  <i class="bi bi-chevron-down"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn-remove"
+                                  (click)="removeFaq(i)"
+                                  [attr.aria-label]="'Remove FAQ ' + (i + 1)"
+                                  title="Remove FAQ"
+                                >
+                                  <i class="bi bi-x-lg"></i>
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                        @if (faqs.length === 0) {
+                          <p class="b-field-hint empty-hint">
+                            No FAQs yet. Click "Add FAQ" to get started.
+                          </p>
+                        }
+                        <button type="button" class="btn-add-service" (click)="addFaq()">
+                          <i class="bi bi-plus-lg"></i>
+                          Add FAQ
+                        </button>
+                      }
+
+                      <!-- SOCIAL LINKS -->
+                      @if (contentSection() === 'social') {
+                        <div class="b-block-title b-block-title-gap">Social Links</div>
+                        <p class="b-field-hint">
+                          Add your social profiles — only platforms with a valid
+                          link appear on your website.
+                        </p>
+                        <div [formGroupName]="'socialLinks'">
+                          @for (platform of socialPlatformDefs; track platform.key) {
+                            <div class="form-group social-field">
+                              <label [for]="'soc-' + platform.key">
+                                <i [class]="'bi ' + platform.icon" aria-hidden="true"></i>
+                                {{ platform.label }}
+                              </label>
+                              <div class="social-input-row">
+                                <input
+                                  [id]="'soc-' + platform.key"
+                                  type="url"
+                                  [formControl]="socialControl(platform.key)"
+                                  [placeholder]="platform.placeholder"
+                                  [attr.aria-label]="platform.label + ' profile URL'"
+                                  [class.invalid]="isUrlInvalid(socialControl(platform.key))"
+                                />
+                                @if (socialControl(platform.key).value) {
+                                  <button
+                                    type="button"
+                                    class="btn-clear-field"
+                                    (click)="socialControl(platform.key).setValue('')"
+                                    [attr.aria-label]="'Clear ' + platform.label + ' link'"
+                                    title="Clear link"
+                                  >
+                                    <i class="bi bi-x-lg"></i>
+                                  </button>
+                                }
+                              </div>
+                              @if (isUrlInvalid(socialControl(platform.key))) {
+                                <p class="field-error">Enter a valid URL starting with https://</p>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+
+                      <!-- PRIMARY CTA -->
+                      @if (contentSection() === 'cta') {
+                        <div class="b-block-title b-block-title-gap">Primary Call-to-Action</div>
+                        <p class="b-field-hint">
+                          The main button shown in the hero of your website.
+                          Disabled means the button is hidden.
+                        </p>
+                        <div [formGroupName]="'primaryCta'">
+                          <div class="toggle-row">
+                            <div>
+                              <strong>Show CTA button</strong>
+                              <span class="toggle-hint">
+                                Adds a prominent action button to your website hero.
+                              </span>
+                            </div>
+                            <label class="switch">
+                              <input type="checkbox" formControlName="enabled" />
+                              <span class="switch-track" aria-hidden="true"></span>
+                            </label>
+                          </div>
+                          <div class="form-group">
+                            <label for="cta-label">Button label</label>
+                            <input
+                              id="cta-label"
+                              type="text"
+                              formControlName="label"
+                              placeholder="e.g. Call Now, Book Now, View Services"
+                            />
+                          </div>
+                          <div class="form-group">
+                            <label id="cta-type-label">Action</label>
+                            <div
+                              class="cta-action-grid"
+                              role="radiogroup"
+                              aria-labelledby="cta-type-label"
+                            >
+                              @for (opt of ctaActionOptions; track opt.value) {
+                                <button
+                                  type="button"
+                                  class="cta-action-option"
+                                  [class.active]="primaryCta.get('actionType')?.value === opt.value"
+                                  (click)="primaryCta.patchValue({ actionType: opt.value })"
+                                  [attr.aria-pressed]="primaryCta.get('actionType')?.value === opt.value"
+                                >
+                                  <i [class]="'bi ' + opt.icon" aria-hidden="true"></i>
+                                  <span>{{ opt.label }}</span>
+                                  <small>{{ opt.hint }}</small>
+                                </button>
+                              }
+                            </div>
+                          </div>
+                          @if (primaryCta.get('actionType')?.value === 'url') {
+                            <div class="form-group">
+                              <label for="cta-value">Link URL</label>
+                              <input
+                                id="cta-value"
+                                type="url"
+                                formControlName="value"
+                                placeholder="https://…"
+                              />
+                            </div>
+                          }
+                          @if (primaryCta.get('actionType')?.value === 'scroll') {
+                            <div class="form-group">
+                              <label for="cta-value">Scroll to section</label>
+                              <select id="cta-value" formControlName="value">
+                                @for (target of scrollCtaTargets; track target) {
+                                  <option [value]="target">{{ target }}</option>
+                                }
+                              </select>
+                            </div>
+                          }
+                          @if (
+                            primaryCta.get('actionType')?.value === 'phone' ||
+                            primaryCta.get('actionType')?.value === 'whatsapp'
+                          ) {
+                            <p class="b-field-hint">
+                              Uses your business
+                              {{ primaryCta.get('actionType')?.value === 'phone' ? 'phone number' : 'WhatsApp number' }}
+                              automatically.
+                            </p>
+                          }
+                        </div>
+                      }
+
+                      <!-- ANNOUNCEMENT -->
+                      @if (contentSection() === 'announcement') {
+                        <div class="b-block-title b-block-title-gap">Announcement Bar</div>
+                        <p class="b-field-hint">
+                          A compact promo bar at the very top of your website.
+                          Disabled means nothing is shown.
+                        </p>
+                        <div [formGroupName]="'announcement'">
+                          <div class="toggle-row">
+                            <div>
+                              <strong>Show announcement bar</strong>
+                              <span class="toggle-hint">
+                                e.g. seasonal offers, new location, holiday hours.
+                              </span>
+                            </div>
+                            <label class="switch">
+                              <input type="checkbox" formControlName="enabled" />
+                              <span class="switch-track" aria-hidden="true"></span>
+                            </label>
+                          </div>
+                          <div class="form-group">
+                            <label for="ann-text">Announcement text</label>
+                            <input
+                              id="ann-text"
+                              type="text"
+                              formControlName="text"
+                              placeholder="e.g. 20% off your first visit this month"
+                            />
+                          </div>
+                          <div class="form-group">
+                            <label for="ann-link-text">Link text (optional)</label>
+                            <input
+                              id="ann-link-text"
+                              type="text"
+                              formControlName="linkText"
+                              placeholder="e.g. Claim offer"
+                            />
+                          </div>
+                          <div class="form-group">
+                            <label for="ann-link-url">Link URL</label>
+                            <input
+                              id="ann-link-url"
+                              type="url"
+                              formControlName="linkUrl"
+                              placeholder="https://…"
+                              [class.invalid]="isUrlInvalid(announcement.get('linkUrl'))"
+                            />
+                            @if (isUrlInvalid(announcement.get('linkUrl'))) {
+                              <p class="field-error">Enter a valid URL starting with https://</p>
+                            }
+                          </div>
+                        </div>
+                      }
                     </div>
                   }
                   @case ('settings') {

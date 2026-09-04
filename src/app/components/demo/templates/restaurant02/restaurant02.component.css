@@ -328,7 +328,7 @@
 
 .cafe-hero {
   position: relative;
-  padding: calc(var(--header-height) + clamp(2.5rem, 7vw, 5.5rem)) 0 clamp(3rem, 7vw, 5.5rem);
+  padding: calc(var(--header-height) + var(--announcement-offset, 0px) + clamp(2.5rem, 7vw, 5.5rem)) 0 clamp(3rem, 7vw, 5.5rem);
   background:
     radial-gradient(ellipse 46% 60% at 90% 6%, var(--color-accent-glow) 0%, transparent 62%),
     radial-gradient(ellipse 40% 46% at 2% 96%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 60%),
@@ -1429,7 +1429,7 @@
   min-height: 100svh;
   display: flex;
   align-items: center;
-  padding: calc(var(--header-height) + 1rem) 0;
+  padding: calc(var(--header-height) + var(--announcement-offset, 0px) + 1rem) 0;
   background: var(--color-deep);
 }
 
@@ -1594,7 +1594,7 @@
 
   .header-nav {
     position: fixed;
-    top: var(--header-height);
+    top: calc(var(--header-height) + var(--announcement-offset, 0px));
     right: 0;
     bottom: 0;
     width: min(340px, 88vw);
@@ -1699,6 +1699,291 @@
     grid-row: auto;
     grid-column: auto;
     aspect-ratio: 4 / 3;
+  }
+}
+
+/* ==========================================================================
+   PHASE 3 · ANNOUNCEMENT BAR
+   ========================================================================== */
+:host {
+  --announcement-offset: 0px;
+  --announcement-height: 44px;
+}
+
+:host(.has-announcement) {
+  --announcement-offset: var(--announcement-height);
+}
+
+.restaurant02-announcement {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  min-height: var(--announcement-height);
+  display: flex;
+  align-items: center;
+  background: var(--color-accent, #b4683c);
+  color: var(--color-accent-ink, #fffaf4);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+}
+
+.announcement-inner {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0.4rem clamp(1rem, 3vw, 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.announcement-text {
+  font-weight: 600;
+}
+
+.announcement-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+}
+
+.announcement-link:hover {
+  opacity: 0.85;
+}
+
+/* Offset the fixed header below the announcement bar when present. */
+.restaurant02-header {
+  top: var(--announcement-offset, 0px);
+}
+
+/* ==========================================================================
+   PHASE 3 · TESTIMONIALS
+   ========================================================================== */
+.cafe-testimonials {
+  background: var(--color-surface, #efe7d9);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: clamp(1.25rem, 3vw, 2rem);
+}
+
+.testimonial-card {
+  background: var(--color-surface-elevated, #fdfaf3);
+  border: 1px solid var(--color-border, #e6d9c3);
+  border-radius: var(--radius-lg, 26px);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.testimonial-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md, 0 10px 30px rgba(43, 32, 23, 0.12));
+}
+
+.testimonial-stars {
+  display: flex;
+  gap: 0.2rem;
+  color: var(--color-accent, #b4683c);
+  font-size: 0.9rem;
+}
+
+.testimonial-quote {
+  font-family: var(--font-accent, 'Playfair Display', Georgia, serif);
+  font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+  font-style: italic;
+  line-height: 1.65;
+  color: var(--color-text, #2b211a);
+  margin: 0;
+}
+
+.testimonial-person {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border, #e6d9c3);
+}
+
+.testimonial-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.testimonial-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent-glow, #f0ddcd);
+  color: var(--color-accent-deep, #93491f);
+  font-size: 1.1rem;
+}
+
+.testimonial-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text, #2b211a);
+}
+
+.testimonial-role {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary, #77684f);
+}
+
+/* ==========================================================================
+   PHASE 3 · FAQ
+   ========================================================================== */
+.cafe-faq {
+  background: var(--color-bg, #f7f2ea);
+}
+
+.faq-list {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.faq-item {
+  background: var(--color-surface-elevated, #fdfaf3);
+  border: 1px solid var(--color-border, #e6d9c3);
+  border-radius: var(--radius, 16px);
+  overflow: hidden;
+}
+
+.faq-item.open {
+  border-color: var(--color-accent, #b4683c);
+}
+
+.faq-question {
+  margin: 0;
+}
+
+.faq-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.05rem 1.25rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text, #2b211a);
+  transition: color var(--transition-fast);
+}
+
+.faq-toggle:hover {
+  color: var(--color-accent, #b4683c);
+}
+
+.faq-toggle:focus-visible {
+  outline: 2px solid var(--color-accent, #b4683c);
+  outline-offset: -3px;
+}
+
+.faq-toggle i {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--color-accent, #b4683c);
+  transition: transform var(--transition-base);
+}
+
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--transition-base);
+}
+
+.faq-answer > p {
+  overflow: hidden;
+  margin: 0;
+}
+
+.faq-answer.open {
+  grid-template-rows: 1fr;
+}
+
+.faq-answer p {
+  padding: 0 1.25rem 1.2rem;
+  max-width: 70ch;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary, #77684f);
+}
+
+/* ==========================================================================
+   PHASE 3 · SOCIAL LINKS
+   ========================================================================== */
+.footer-social {
+  margin-top: 1.1rem;
+}
+
+.footer-social h4 {
+  margin-bottom: 0.7rem;
+}
+
+.footer-social-icons {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.footer-social-link {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border, #e6d9c3);
+  border-radius: 50%;
+  color: var(--color-text-secondary, #77684f);
+  font-size: 0.95rem;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.footer-social-link:hover {
+  border-color: var(--color-accent, #b4683c);
+  color: var(--color-accent, #b4683c);
+  background: var(--color-accent-glow, #f0ddcd);
+}
+
+@media (max-width: 768px) {
+  .restaurant02-announcement {
+    min-height: 0;
+  }
+
+  .announcement-inner {
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.45rem 1rem;
+  }
+
+  .testimonials-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,3 +1,23 @@
+@if (announcementEnabled) {
+  <div class="clothing-announcement" role="region" aria-label="Announcement">
+    <div class="clothing-announcement-inner">
+      <i class="bi bi-megaphone-fill" aria-hidden="true"></i>
+      <span class="clothing-announcement-text">{{ announcementText }}</span>
+      @if (announcementLink) {
+        <a
+          class="clothing-announcement-link"
+          [href]="announcementLink"
+          target="_blank"
+          rel="noopener"
+        >
+          {{ announcementLinkText }}
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </a>
+      }
+    </div>
+  </div>
+}
+
 <header id="home" class="clothing-header" [class.scrolled]="isScrolled">
   <div class="header-inner">
     <div class="logo" [attr.aria-label]="business.businessName + ' - Home'">
@@ -58,6 +78,17 @@
         <h1 id="hero-title" class="hero-title">{{ business.businessName }}</h1>
         <p class="hero-tagline">{{ business.tagline || 'Timeless Style. Modern Living.' }}</p>
         <div class="hero-cta-group">
+          @if (primaryCta) {
+            <a
+              class="btn btn-primary"
+              [href]="primaryCta.href || '#'"
+              [attr.target]="primaryCta.external ? '_blank' : null"
+              [attr.rel]="primaryCta.external ? 'noopener' : null"
+              (click)="onPrimaryCtaClick($event)"
+            >
+              <span>{{ primaryCta.label }}</span>
+            </a>
+          }
           <a href="#collection" class="btn btn-primary" (click)="scrollTo('collection')">
             Explore Collection
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
@@ -209,6 +240,92 @@
     </section>
   }
 
+  <!-- TESTIMONIALS -->
+  @if (displayTestimonials.length > 0) {
+    <section id="testimonials" class="section testimonials-section" aria-labelledby="testimonials-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">From Our Clients</span>
+          <h2 id="testimonials-title" class="section-title">Loved by Our Community</h2>
+          <p class="section-description">What style-conscious customers say about the experience.</p>
+        </header>
+        <div class="testimonials-grid">
+          @for (t of displayTestimonials; track t.id) {
+            <article class="testimonial-card">
+              <div class="testimonial-stars" [attr.aria-label]="'Rated ' + (t.rating || 0) + ' out of 5'">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <i
+                    class="bi"
+                    [ngClass]="star <= starsFor(t.rating).filled ? 'bi-star-fill' : 'bi-star'"
+                    aria-hidden="true"
+                  ></i>
+                }
+              </div>
+              <p class="testimonial-quote">“{{ t.quote }}”</p>
+              <div class="testimonial-person">
+                @if (t.imageUrl) {
+                  <img [src]="t.imageUrl" [alt]="t.name" class="testimonial-avatar" loading="lazy" />
+                } @else {
+                  <span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
+                    <i class="bi bi-person"></i>
+                  </span>
+                }
+                <div>
+                  <strong class="testimonial-name">{{ t.name }}</strong>
+                  @if (t.role) {
+                    <span class="testimonial-role">{{ t.role }}</span>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- FAQ -->
+  @if (displayFaqs.length > 0) {
+    <section id="faq" class="section faq-section" aria-labelledby="faq-title">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">Good to Know</span>
+          <h2 id="faq-title" class="section-title">Frequently Asked Questions</h2>
+        </header>
+        <div class="faq-list">
+          @for (faq of displayFaqs; track faq.id; let i = $index) {
+            <div class="faq-item" [class.open]="isFaqOpen(i)">
+              <h3 class="faq-question">
+                <button
+                  type="button"
+                  class="faq-toggle"
+                  [attr.aria-expanded]="isFaqOpen(i)"
+                  [attr.aria-controls]="'faq-panel-' + i"
+                  (click)="toggleFaq(i)"
+                >
+                  <span>{{ faq.question }}</span>
+                  <i
+                    class="bi"
+                    [ngClass]="isFaqOpen(i) ? 'bi-chevron-up' : 'bi-chevron-down'"
+                    aria-hidden="true"
+                  ></i>
+                </button>
+              </h3>
+              <div
+                [id]="'faq-panel-' + i"
+                class="faq-answer"
+                role="region"
+                [class.open]="isFaqOpen(i)"
+              >
+                <p>{{ faq.answer }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
   <!-- CONTACT / SHOP -->
   <section id="contact" class="section contact-section" aria-labelledby="contact-title">
     <div class="container">
@@ -344,11 +461,21 @@
         @if (business.address) {
           <address class="footer-address">{{ business.address }}</address>
         }
-        <div class="footer-social">
-          <a href="#" class="social-link" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
-          <a href="#" class="social-link" aria-label="Pinterest"><i class="bi bi-pinterest"></i></a>
-          <a href="#" class="social-link" aria-label="Email"><i class="bi bi-envelope"></i></a>
-        </div>
+        @if (socialLinks.length > 0) {
+          <div class="footer-social">
+            @for (link of socialLinks; track link.platform) {
+              <a
+                [href]="link.url"
+                class="social-link"
+                target="_blank"
+                rel="noopener"
+                [attr.aria-label]="link.label"
+              >
+                <i [class]="'bi ' + link.icon"></i>
+              </a>
+            }
+          </div>
+        }
       </div>
     </div>
     <div class="footer-bottom">

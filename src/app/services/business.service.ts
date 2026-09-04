@@ -162,6 +162,22 @@ export class BusinessService {
     if (business.themeOptions && Object.keys(business.themeOptions).length > 0) {
       dataToSave['themeOptions'] = business.themeOptions;
     }
+    // ---- Optional Phase 3 advanced features (only when present) ----
+    if (business.testimonials && business.testimonials.length > 0) {
+      dataToSave['testimonials'] = business.testimonials;
+    }
+    if (business.faqs && business.faqs.length > 0) {
+      dataToSave['faqs'] = business.faqs;
+    }
+    if (business.socialLinks && Object.values(business.socialLinks).some((v) => v)) {
+      dataToSave['socialLinks'] = business.socialLinks;
+    }
+    if (business.primaryCta && business.primaryCta.enabled && business.primaryCta.label) {
+      dataToSave['primaryCta'] = business.primaryCta;
+    }
+    if (business.announcement && business.announcement.enabled && business.announcement.text) {
+      dataToSave['announcement'] = business.announcement;
+    }
 
     try {
       const docRef = await this.withTimeout(

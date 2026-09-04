@@ -18,14 +18,36 @@ import {
   ReactiveFormsModule,
   FormBuilder,
   FormGroup,
+  FormControl,
   Validators,
   FormArray,
+  AbstractControl,
+  ValidationErrors,
+  ValidatorFn,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule, CanDeactivate } from '@angular/router';
 import { BusinessService } from '../../../services/business.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotService } from '../../../services/screenshot.service';
-import { Business, ServiceItem, BusinessHours, DayHours, normalizeServices, servicesToNames } from '../../../models/business.model';
+import {
+  Business,
+  ServiceItem,
+  BusinessHours,
+  DayHours,
+  Testimonial,
+  FAQItem,
+  SocialLinks,
+  PrimaryCta,
+  PrimaryCtaAction,
+  AnnouncementConfig,
+  normalizeServices,
+  servicesToNames,
+} from '../../../models/business.model';
+import {
+  isValidHttpUrl,
+  SCROLL_CTA_TARGETS,
+  SOCIAL_PLATFORMS,
+} from '../../demo/shared/advanced-features';
 import {
   getDefaultTemplateForCategory,
   getDefaultThemeForTemplate,
@@ -102,6 +124,43 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   /** true when rendered through /admin/business/:id/edit. */
   builderLayout = signal(false);
   builderSection = signal<'info' | 'design' | 'content' | 'settings'>('info');
+  /** Active sub-tab inside the Content panel. */
+  contentSection = signal<
+    | 'services'
+    | 'gallery'
+    | 'testimonials'
+    | 'faqs'
+    | 'social'
+    | 'cta'
+    | 'announcement'
+  >('services');
+  /** Content sub-navigation (Services → Announcement). */
+  readonly contentSubSections = [
+    { id: 'services', icon: 'bi-journal-text', label: 'Services' },
+    { id: 'gallery', icon: 'bi-images', label: 'Gallery' },
+    { id: 'testimonials', icon: 'bi-chat-quote', label: 'Testimonials' },
+    { id: 'faqs', icon: 'bi-question-circle', label: 'FAQ' },
+    { id: 'social', icon: 'bi-share', label: 'Social Links' },
+    { id: 'cta', icon: 'bi-bullseye', label: 'Primary CTA' },
+    { id: 'announcement', icon: 'bi-megaphone', label: 'Announcement' },
+  ] as const;
+  /** Social platforms editable in the builder. */
+  readonly socialPlatformDefs = [
+    { key: 'instagram', label: 'Instagram', icon: 'bi-instagram', placeholder: 'https://instagram.com/yourpage' },
+    { key: 'facebook', label: 'Facebook', icon: 'bi-facebook', placeholder: 'https://facebook.com/yourpage' },
+    { key: 'youtube', label: 'YouTube', icon: 'bi-youtube', placeholder: 'https://youtube.com/@yourchannel' },
+    { key: 'linkedin', label: 'LinkedIn', icon: 'bi-linkedin', placeholder: 'https://linkedin.com/company/yourpage' },
+    { key: 'x', label: 'X (Twitter)', icon: 'bi-twitter-x', placeholder: 'https://x.com/yourhandle' },
+  ] as const;
+  /** Section ids a scroll CTA may target (exposed for the builder UI). */
+  readonly scrollCtaTargets = SCROLL_CTA_TARGETS;
+  /** Primary CTA action types. */
+  readonly ctaActionOptions = [
+    { value: 'phone', label: 'Phone', icon: 'bi-telephone', hint: 'Calls the business phone' },
+    { value: 'whatsapp', label: 'WhatsApp', icon: 'bi-whatsapp', hint: 'Opens a WhatsApp chat' },
+    { value: 'url', label: 'External URL', icon: 'bi-box-arrow-up-right', hint: 'Opens a link (e.g. booking page)' },
+    { value: 'scroll', label: 'Scroll to section', icon: 'bi-arrow-down-circle', hint: 'Scrolls to a section of the page' },
+  ] as const;
   builderDevice = signal<'desktop' | 'tablet' | 'mobile'>('desktop');
   savedState = signal<'saved' | 'dirty' | 'saving'>('saved');
   notFoundBusiness = signal(false);
@@ -116,7 +175,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       hint: 'Name, contact & branding',
     },
     { id: 'design', icon: 'bi-layout-text-window-reverse', label: 'Design', hint: 'Website design & style' },
-    { id: 'content', icon: 'bi-images', label: 'Content', hint: 'Services, logo & photos' },
+    { id: 'content', icon: 'bi-images', label: 'Content', hint: 'Services, testimonials & more' },
     { id: 'settings', icon: 'bi-gear', label: 'Settings', hint: 'SEO, hours & branding' },
   ] as const;
   private builderRef: ComponentRef<{ business: Business; theme?: ThemeConfig }> | null =
@@ -532,6 +591,23 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     return confirm('You have unsaved changes. Are you sure you want to leave?');
   }
 
+  /** Optional http(s) URL control: empty is valid, non-empty must be a URL. */
+  private urlValidator: ValidatorFn = (
+    control: AbstractControl
+  ): ValidationErrors | null => {
+    const value = (control.value ?? '').toString().trim();
+    if (!value) return null;
+    return isValidHttpUrl(value) ? null : { invalidUrl: true };
+  };
+
+  /** Unique id for testimonials/FAQ items (crypto when available). */
+  private generateId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
   private initForm(): void {
     this.form = this.fb.group({
       businessName: ['', Validators.required],
@@ -543,6 +619,28 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       whatsapp: [''],
       address: [''],
       services: this.fb.array([]),
+      testimonials: this.fb.array([]),
+      faqs: this.fb.array([]),
+      // Phase 3 optional features (all disabled/empty by default)
+      socialLinks: this.fb.group({
+        instagram: ['', this.urlValidator],
+        facebook: ['', this.urlValidator],
+        youtube: ['', this.urlValidator],
+        linkedin: ['', this.urlValidator],
+        x: ['', this.urlValidator],
+      }),
+      primaryCta: this.fb.group({
+        enabled: [false],
+        label: [''],
+        actionType: ['phone'],
+        value: [''],
+      }),
+      announcement: this.fb.group({
+        enabled: [false],
+        text: [''],
+        linkText: [''],
+        linkUrl: ['', this.urlValidator],
+      }),
       status: ['draft'],
       themeId: [DEFAULT_THEME_ID],
       // Empty style controls = inherit the selected theme's preset.
@@ -643,6 +741,187 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     return this.services.controls as FormGroup[];
   }
 
+  // ============ TESTIMONIALS ============
+
+  get testimonials(): FormArray {
+    return this.form.get('testimonials') as FormArray;
+  }
+
+  get testimonialGroups(): FormGroup[] {
+    return this.testimonials.controls as FormGroup[];
+  }
+
+  private createTestimonialGroup(testimonial?: Testimonial): FormGroup {
+    return this.fb.group({
+      id: [testimonial?.id || this.generateId()],
+      name: [testimonial?.name || '', Validators.required],
+      role: [testimonial?.role || ''],
+      quote: [testimonial?.quote || '', Validators.required],
+      rating: [
+        testimonial?.rating && testimonial.rating > 0 ? testimonial.rating : 5,
+        [Validators.min(1), Validators.max(5)],
+      ],
+      imageUrl: [testimonial?.imageUrl || ''],
+    });
+  }
+
+  addTestimonial(): void {
+    this.testimonials.push(this.createTestimonialGroup());
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.testimonial-item .testimonial-name-input');
+      const last = inputs[inputs.length - 1] as HTMLInputElement;
+      last?.focus();
+    }, 0);
+  }
+
+  removeTestimonial(index: number): void {
+    this.testimonials.removeAt(index);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveTestimonialUp(index: number): void {
+    if (index <= 0) return;
+    const control = this.testimonials.at(index);
+    this.testimonials.removeAt(index);
+    this.testimonials.insert(index - 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveTestimonialDown(index: number): void {
+    if (index >= this.testimonials.length - 1) return;
+    const control = this.testimonials.at(index);
+    this.testimonials.removeAt(index);
+    this.testimonials.insert(index + 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  /** Set a testimonial's rating (1–5). */
+  setTestimonialRating(index: number, rating: number): void {
+    const control = this.testimonials.at(index)?.get('rating');
+    control?.setValue(rating);
+  }
+
+  /** Upload a photo for a testimonial (reuses the shared StorageService). */
+  async onTestimonialImageChange(event: Event, index: number): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    const validation = this.storageService.validateFile(file);
+    if (!validation.valid) {
+      this.errorMessage.set(validation.error!);
+      input.value = '';
+      return;
+    }
+    try {
+      const businessId = this.businessId();
+      if (!businessId) {
+        this.errorMessage.set('Save the business once, then you can add testimonial photos.');
+        input.value = '';
+        return;
+      }
+      const url = await this.storageService.uploadImage(businessId, file);
+      this.testimonials.at(index)?.patchValue({ imageUrl: url });
+      this.markUnsavedBuilderChanges();
+    } catch (err: any) {
+      console.error('[BusinessForm] Testimonial image upload failed:', err);
+      this.errorMessage.set(err?.message || 'Image upload failed. Please try again.');
+    } finally {
+      input.value = '';
+    }
+  }
+
+  removeTestimonialImage(index: number): void {
+    this.testimonials.at(index)?.patchValue({ imageUrl: '' });
+    this.markUnsavedBuilderChanges();
+  }
+
+  // ============ FAQ ============
+
+  get faqs(): FormArray {
+    return this.form.get('faqs') as FormArray;
+  }
+
+  get faqGroups(): FormGroup[] {
+    return this.faqs.controls as FormGroup[];
+  }
+
+  private createFaqGroup(faq?: FAQItem): FormGroup {
+    return this.fb.group({
+      id: [faq?.id || this.generateId()],
+      question: [faq?.question || '', Validators.required],
+      answer: [faq?.answer || '', Validators.required],
+    });
+  }
+
+  addFaq(): void {
+    this.faqs.push(this.createFaqGroup());
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.faq-item .faq-question-input');
+      const last = inputs[inputs.length - 1] as HTMLInputElement;
+      last?.focus();
+    }, 0);
+  }
+
+  removeFaq(index: number): void {
+    this.faqs.removeAt(index);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveFaqUp(index: number): void {
+    if (index <= 0) return;
+    const control = this.faqs.at(index);
+    this.faqs.removeAt(index);
+    this.faqs.insert(index - 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  moveFaqDown(index: number): void {
+    if (index >= this.faqs.length - 1) return;
+    const control = this.faqs.at(index);
+    this.faqs.removeAt(index);
+    this.faqs.insert(index + 1, control);
+    this.markUnsavedBuilderChanges();
+  }
+
+  // ============ SOCIAL LINKS / CTA / ANNOUNCEMENT ============
+
+  get socialLinks(): FormGroup {
+    return this.form.get('socialLinks') as FormGroup;
+  }
+
+  get primaryCta(): FormGroup {
+    return this.form.get('primaryCta') as FormGroup;
+  }
+
+  get announcement(): FormGroup {
+    return this.form.get('announcement') as FormGroup;
+  }
+
+  socialControl(platform: string): FormControl {
+    return this.socialLinks.get(platform) as FormControl;
+  }
+
+  isUrlInvalid(control: AbstractControl | null): boolean {
+    return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+
+  /** Content sub-tab navigation. */
+  setContentSection(
+    section: 'services' | 'gallery' | 'testimonials' | 'faqs' | 'social' | 'cta' | 'announcement'
+  ): void {
+    this.contentSection.set(section);
+  }
+
+  setContentSectionOnKey(
+    event: KeyboardEvent,
+    section: 'services' | 'gallery' | 'testimonials' | 'faqs' | 'social' | 'cta' | 'announcement'
+  ): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.setContentSection(section);
+    }
+  }
+
   private async loadBusiness(id: string): Promise<void> {
     this.loading.set(true);
     try {
@@ -688,8 +967,36 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
           saturday: { open: '10:00', close: '20:00', closed: false },
           sunday: { open: '10:00', close: '20:00', closed: true },
         },
+        // Phase 3 optional features (defaults when never configured)
+        socialLinks: business.socialLinks || {
+          instagram: '',
+          facebook: '',
+          youtube: '',
+          linkedin: '',
+          x: '',
+        },
+        primaryCta: business.primaryCta || {
+          enabled: false,
+          label: '',
+          actionType: 'phone',
+          value: '',
+        },
+        announcement: business.announcement || {
+          enabled: false,
+          text: '',
+          linkText: '',
+          linkUrl: '',
+        },
       });
       this.suppressTemplateAutoSelect = false;
+
+      // Populate the FormArrays (patchValue cannot create array controls).
+      (business.testimonials || []).forEach((t) =>
+        this.testimonials.push(this.createTestimonialGroup(t))
+      );
+      (business.faqs || []).forEach((f) =>
+        this.faqs.push(this.createFaqGroup(f))
+      );
 
       // Update available templates for the loaded business category
       if (business.category) {
@@ -974,6 +1281,129 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     this.markUnsavedBuilderChanges();
   }
 
+  // ============ PHASE 3 · SAVE-SIDE CLEANING ============
+
+  /**
+   * Sanitize testimonials for persistence: drop items without a name or
+   * quote, trim strings and clamp ratings to 1–5. Returns [] (never
+   * undefined) so that removing every testimonial clears the stored list.
+   */
+  private cleanTestimonials(list: any): Testimonial[] {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(
+        (t) =>
+          t &&
+          typeof t.name === 'string' &&
+          t.name.trim().length > 0 &&
+          typeof t.quote === 'string' &&
+          t.quote.trim().length > 0
+      )
+      .map((t) => {
+        const rating =
+          typeof t.rating === 'number' && t.rating >= 1 && t.rating <= 5
+            ? Math.round(t.rating)
+            : undefined;
+        return {
+          id: typeof t.id === 'string' && t.id ? t.id : this.generateId(),
+          name: t.name.trim(),
+          role: typeof t.role === 'string' && t.role.trim() ? t.role.trim() : undefined,
+          quote: t.quote.trim(),
+          rating,
+          imageUrl:
+            typeof t.imageUrl === 'string' && t.imageUrl.trim()
+              ? t.imageUrl.trim()
+              : undefined,
+        };
+      });
+  }
+
+  /**
+   * Sanitize FAQs for persistence: keep only items with a question and an
+   * answer. Returns [] so clearing every FAQ removes the stored list.
+   */
+  private cleanFaqs(list: any): FAQItem[] {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(
+        (f) =>
+          f &&
+          typeof f.question === 'string' &&
+          f.question.trim().length > 0 &&
+          typeof f.answer === 'string' &&
+          f.answer.trim().length > 0
+      )
+      .map((f) => ({
+        id: typeof f.id === 'string' && f.id ? f.id : this.generateId(),
+        question: f.question.trim(),
+        answer: f.answer.trim(),
+      }));
+  }
+
+  /**
+   * Keep only platforms with a valid http(s) URL (trimmed). Returns {} when
+   * every platform is cleared so a previous configuration is overwritten.
+   */
+  private cleanSocialLinks(obj: any): SocialLinks {
+    const source = (obj && typeof obj === 'object' ? obj : {}) as SocialLinks;
+    const cleaned: SocialLinks = {};
+    for (const platform of SOCIAL_PLATFORMS) {
+      const value = source[platform];
+      if (typeof value === 'string' && isValidHttpUrl(value)) {
+        cleaned[platform] = value.trim();
+      }
+    }
+    return cleaned;
+  }
+
+  /**
+   * Persist the CTA config as-is when disabled (so disabling sticks) and
+   * only resolve the action value when it is actually usable.
+   */
+  private cleanPrimaryCta(obj: any): PrimaryCta {
+    const source = (obj && typeof obj === 'object' ? obj : {}) as PrimaryCta;
+    const label = typeof source.label === 'string' ? source.label.trim() : '';
+    if (!source.enabled || !label) {
+      return { enabled: false, label: '', actionType: 'phone', value: '' };
+    }
+    const actionType: PrimaryCtaAction =
+      source.actionType === 'phone' ||
+      source.actionType === 'whatsapp' ||
+      source.actionType === 'url' ||
+      source.actionType === 'scroll'
+        ? source.actionType
+        : 'phone';
+    const value = typeof source.value === 'string' ? source.value.trim() : '';
+    // URL actions must be valid; scroll actions must target an existing
+    // section. Invalid values fall back to the business' own contact info.
+    if (actionType === 'url' && !isValidHttpUrl(value)) {
+      return { enabled: true, label, actionType: 'phone', value: '' };
+    }
+    if (actionType === 'scroll' && !SCROLL_CTA_TARGETS.includes(value)) {
+      return { enabled: true, label, actionType: 'phone', value: '' };
+    }
+    return { enabled: true, label, actionType, value };
+  }
+
+  /**
+   * Persist the announcement config as-is when disabled (so disabling
+   * sticks) and keep the link only when both label and URL are present.
+   */
+  private cleanAnnouncement(obj: any): AnnouncementConfig {
+    const source = (obj && typeof obj === 'object' ? obj : {}) as AnnouncementConfig;
+    const text = typeof source.text === 'string' ? source.text.trim() : '';
+    if (!source.enabled || !text) {
+      return { enabled: false, text: '', linkText: '', linkUrl: '' };
+    }
+    const linkText =
+      typeof source.linkText === 'string' ? source.linkText.trim() : '';
+    const linkUrl =
+      typeof source.linkUrl === 'string' && isValidHttpUrl(source.linkUrl)
+        ? source.linkUrl.trim()
+        : '';
+    return { enabled: true, text, linkText: linkText || undefined, linkUrl: linkUrl || undefined };
+  }
+
   async onSubmit(status?: 'draft' | 'published'): Promise<void> {
     // Read status from the form if not explicitly passed
     const formStatus = status || this.form.get('status')?.value || 'draft';
@@ -1009,6 +1439,35 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     if (!isTemplateSupported(templateId)) {
       this.errorMessage.set(
         `${getTemplateDisplayName(templateId)} is not available. Please select a supported template.`
+      );
+      return;
+    }
+
+    // Validate the optional primary CTA before saving
+    const ctaValue = this.form.get('primaryCta')?.value;
+    if (ctaValue?.enabled && ctaValue.label?.trim()) {
+      if (ctaValue.actionType === 'url' && !isValidHttpUrl(ctaValue.value)) {
+        this.errorMessage.set(
+          'Primary CTA: for the URL action, enter a valid link (e.g. https://…).'
+        );
+        return;
+      }
+      if (
+        ctaValue.actionType === 'scroll' &&
+        (!ctaValue.value?.trim() || !SCROLL_CTA_TARGETS.includes(ctaValue.value.trim()))
+      ) {
+        this.errorMessage.set(
+          'Primary CTA: choose an existing page section to scroll to (e.g. services, gallery, contact).'
+        );
+        return;
+      }
+    }
+
+    // Validate the announcement link when a link label is set
+    const annValue = this.form.get('announcement')?.value;
+    if (annValue?.enabled && annValue.linkText?.trim() && !isValidHttpUrl(annValue.linkUrl)) {
+      this.errorMessage.set(
+        'Announcement: when a link label is set, the link URL must be valid (e.g. https://…).'
       );
       return;
     }
@@ -1090,7 +1549,24 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         seoKeywords: formValue.seoKeywords?.trim() || undefined,
         // Business hours
         businessHours: formValue.businessHours || undefined,
+        // ---- Phase 3 optional features (always persisted so removals stick) ----
+        testimonials: this.cleanTestimonials(formValue.testimonials),
+        faqs: this.cleanFaqs(formValue.faqs),
+        socialLinks: this.cleanSocialLinks(formValue.socialLinks),
+        primaryCta: this.cleanPrimaryCta(formValue.primaryCta),
+        announcement: this.cleanAnnouncement(formValue.announcement),
       };
+
+      // The phase-3 fields are only written when a business already exists
+      // (the builder). New businesses keep the lean create payload; the
+      // fields appear on the first save from the builder.
+      if (!this.isEditMode()) {
+        delete (businessData as any).testimonials;
+        delete (businessData as any).faqs;
+        delete (businessData as any).socialLinks;
+        delete (businessData as any).primaryCta;
+        delete (businessData as any).announcement;
+      }
 
       let businessId = this.businessId();
 
@@ -1425,6 +1901,13 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       this.logoPreview(),
       this.imagePreviews()[0] || '',
       (v.services || []).length,
+      // Phase 3 features render on the page, so include them or thumbnails
+      // would go stale after editing testimonials/FAQ/social/CTA/announcement.
+      JSON.stringify(this.cleanTestimonials(v.testimonials)),
+      JSON.stringify(this.cleanFaqs(v.faqs)),
+      JSON.stringify(this.cleanSocialLinks(v.socialLinks)),
+      JSON.stringify(this.cleanPrimaryCta(v.primaryCta)),
+      JSON.stringify(this.cleanAnnouncement(v.announcement)),
     ].join('|');
   }
 
@@ -1733,6 +2216,13 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       faviconUrl: this.faviconPreview() || undefined,
       // Business hours
       businessHours: value.businessHours || undefined,
+      // Phase 3 optional features (same cleaning as save, so the preview
+      // matches exactly what would be published).
+      testimonials: this.cleanTestimonials(value.testimonials),
+      faqs: this.cleanFaqs(value.faqs),
+      socialLinks: this.cleanSocialLinks(value.socialLinks),
+      primaryCta: this.cleanPrimaryCta(value.primaryCta),
+      announcement: this.cleanAnnouncement(value.announcement),
     };
 
     if (this.logoPreview()) {
