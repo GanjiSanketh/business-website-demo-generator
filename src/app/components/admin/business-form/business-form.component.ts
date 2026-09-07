@@ -40,6 +40,7 @@ import {
   PrimaryCta,
   PrimaryCtaAction,
   AnnouncementConfig,
+  CustomDomainConfig,
   normalizeServices,
   servicesToNames,
 } from '../../../models/business.model';
@@ -48,6 +49,14 @@ import {
   SCROLL_CTA_TARGETS,
   SOCIAL_PLATFORMS,
 } from '../../demo/shared/advanced-features';
+import {
+  normalizeDomain,
+  isValidDomainHostname,
+  generateVerificationToken,
+  VERIFICATION_TXT_HOST,
+  getVerificationTxtValue,
+  isCustomDomainActive,
+} from '../../demo/shared/domain-utils';
 import {
   getDefaultTemplateForCategory,
   getDefaultThemeForTemplate,
@@ -119,6 +128,14 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   dragOverSocialImage = signal(false);
   copySuccess = signal(false);
   private formPristine = true;
+
+  // ---- Custom Domain (Phase 4) ----
+  customDomainInput = signal('');
+  customDomainStatus = signal<'idle' | 'checking' | 'connected' | 'error'>('idle');
+  customDomainError = signal('');
+  customDomainVerifying = signal(false);
+  showVerificationToken = signal(false);
+  private customDomainOriginal: CustomDomainConfig | null = null;
 
   // ---- Builder workspace (edit mode) ----
   /** true when rendered through /admin/business/:id/edit. */
@@ -987,8 +1004,22 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
           linkText: '',
           linkUrl: '',
         },
+        // Custom Domain (Phase 4)
+        customDomain: business.customDomain,
       });
       this.suppressTemplateAutoSelect = false;
+
+      // Store custom domain config for the builder UI
+      if (business.customDomain) {
+        this.customDomainOriginal = { ...business.customDomain };
+        if (business.customDomain.status === 'pending') {
+          this.customDomainStatus.set('connected');
+          this.showVerificationToken.set(true);
+        } else if (business.customDomain.status === 'verified') {
+          this.customDomainStatus.set('connected');
+          this.showVerificationToken.set(false);
+        }
+      }
 
       // Populate the FormArrays (patchValue cannot create array controls).
       (business.testimonials || []).forEach((t) =>
@@ -1763,6 +1794,168 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     this.logoPreview.set('');
     this.logoFile.set(null);
     this.markUnsavedBuilderChanges();
+  }
+
+  // ============ CUSTOM DOMAIN METHODS (Phase 4) ============
+
+  /** Get the current custom domain config from the loaded business. */
+  get currentCustomDomain(): CustomDomainConfig | undefined {
+    const cd = this.customDomainOriginal;
+    if (cd) return cd;
+    // Fallback: read from form if not loaded yet (edit mode initial load)
+    return this.form?.get('customDomain')?.value;
+  }
+
+  /** Whether a custom domain is configured (any status). */
+  get hasCustomDomain(): boolean {
+    return !!this.currentCustomDomain?.domain;
+  }
+
+  /** Whether the custom domain is verified and active. */
+  get isCustomDomainVerified(): boolean {
+    return isCustomDomainActive(this.currentCustomDomain);
+  }
+
+  /** Custom domain display label. */
+  get customDomainLabel(): string {
+    const cd = this.currentCustomDomain;
+    if (!cd?.domain) return '';
+    const statusLabels: Record<string, string> = {
+      pending: 'Pending verification',
+      verified: 'Verified',
+      disabled: 'Disabled',
+    };
+    return `${cd.domain} · ${statusLabels[cd.status] || cd.status}`;
+  }
+
+  /** Input validation for custom domain field. */
+  validateCustomDomainInput(): boolean {
+    const input = this.customDomainInput().trim();
+    if (!input) {
+      this.customDomainError.set('Please enter a domain name.');
+      return false;
+    }
+    const normalized = normalizeDomain(input);
+    if (!normalized || !isValidDomainHostname(normalized)) {
+      this.customDomainError.set('Invalid domain format. Use a hostname like example.com or www.example.com');
+      return false;
+    }
+    // Check if it's the same as current
+    if (normalized === this.currentCustomDomain?.domain) {
+      this.customDomainError.set('This domain is already connected.');
+      return false;
+    }
+    this.customDomainError.set('');
+    return true;
+  }
+
+  /** Connect a custom domain - validates and saves. */
+  async connectCustomDomain(): Promise<void> {
+    if (!this.validateCustomDomainInput()) return;
+    if (!this.businessId()) {
+      this.customDomainError.set('Save the business first before connecting a domain.');
+      return;
+    }
+
+    this.customDomainStatus.set('checking');
+    this.customDomainError.set('');
+
+    try {
+      const config = await this.businessService.connectCustomDomain(
+        this.businessId(),
+        this.customDomainInput()
+      );
+      this.customDomainOriginal = config;
+      this.customDomainInput.set('');
+      this.customDomainStatus.set('connected');
+      this.showVerificationToken.set(true);
+      this.successMessage.set('Custom domain connected. Add the TXT record to verify.');
+    } catch (err: any) {
+      this.customDomainStatus.set('error');
+      this.customDomainError.set(err?.message || 'Failed to connect domain. Please try again.');
+    }
+  }
+
+  /** Verify the custom domain via server-side DNS TXT record check. */
+  async verifyCustomDomain(): Promise<void> {
+    if (!this.businessId()) return;
+
+    this.customDomainVerifying.set(true);
+    this.customDomainError.set('');
+
+    try {
+      // Calls the Cloud Function which performs secure DNS verification
+      const config = await this.businessService.verifyCustomDomain(this.businessId());
+      this.customDomainOriginal = config;
+      this.showVerificationToken.set(false);
+      this.customDomainStatus.set('connected');
+      this.successMessage.set('Custom domain verified! Your site is now live at your domain.');
+    } catch (err: any) {
+      const message = err?.message || '';
+      // Provide user-friendly messages for common error codes
+      if (message.includes('verification record')) {
+        this.customDomainError.set(
+          'We couldn\'t find the verification record yet. DNS changes can take time to propagate. Please wait a few minutes and try again.'
+        );
+      } else if (message.includes('DNS') || message.includes('unavailable')) {
+        this.customDomainError.set(
+          'Unable to check DNS right now. Please try again later.'
+        );
+      } else if (message.includes('already verified')) {
+        this.customDomainError.set('This domain is already verified.');
+      } else if (message.includes('another business')) {
+        this.customDomainError.set('This domain is already verified for another business.');
+      } else {
+        this.customDomainError.set(message || 'Verification failed. Please try again.');
+      }
+    } finally {
+      this.customDomainVerifying.set(false);
+    }
+  }
+
+  /** Disconnect the custom domain. */
+  async disconnectCustomDomain(): Promise<void> {
+    if (!this.businessId()) return;
+    if (!confirm('Disconnect this custom domain? This will remove the domain connection and visitors will only be able to access your site via the demo URL.')) {
+      return;
+    }
+
+    this.customDomainError.set('');
+
+    try {
+      await this.businessService.disconnectCustomDomain(this.businessId());
+      this.customDomainOriginal = null;
+      this.customDomainStatus.set('idle');
+      this.showVerificationToken.set(false);
+      this.successMessage.set('Custom domain disconnected.');
+    } catch (err: any) {
+      this.customDomainError.set(err?.message || 'Failed to disconnect domain. Please try again.');
+    }
+  }
+
+  /** Toggle showing the verification token. */
+  toggleVerificationToken(): void {
+    this.showVerificationToken.set(!this.showVerificationToken());
+  }
+
+  /** Get the verification TXT host. */
+  get verificationTxtHost(): string {
+    return VERIFICATION_TXT_HOST;
+  }
+
+  /** Get the verification TXT value. */
+  get verificationTxtValue(): string {
+    const token = this.currentCustomDomain?.verificationToken;
+    return token ? getVerificationTxtValue(token) : '';
+  }
+
+  /** Copy verification token to clipboard. */
+  copyVerificationToken(): void {
+    navigator.clipboard.writeText(this.verificationTxtValue).then(() => {
+      this.successMessage.set('Verification token copied to clipboard.');
+    }).catch(() => {
+      this.errorMessage.set('Failed to copy token.');
+    });
   }
 
   /** Origin for slug display (safe for SSR). */

@@ -13,15 +13,20 @@ import {
   orderBy,
   DocumentData,
   Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AuthService } from './auth.service';
-import { Business } from '../models/business.model';
+import { Business, CustomDomainConfig } from '../models/business.model';
+import { normalizeDomain, isValidDomainHostname, generateVerificationToken } from '../components/demo/shared/domain-utils';
 
 @Injectable({ providedIn: 'root' })
 export class BusinessService {
   private db: ReturnType<typeof getFirestore> | undefined;
   private dbInitialized = false;
+  private functions: ReturnType<typeof getFunctions> | undefined;
+  private functionsInitialized = false;
   private collectionName = 'businesses';
 
   businesses = signal<Business[]>([]);
@@ -30,6 +35,30 @@ export class BusinessService {
   constructor(private authService: AuthService) {
     // Do NOT initialize Firestore here — Firebase may not be ready yet.
     // Use lazy init via getDb().
+  }
+
+  /**
+   * Lazily initialize and return the Cloud Functions instance.
+   */
+  private async getFunctionsInstance() {
+    if (this.functions && this.functionsInitialized) {
+      return this.functions;
+    }
+
+    await this.authService.ready;
+
+    try {
+      const apps = getApps();
+      if (apps.length === 0) {
+        throw new Error('Firebase app not initialized');
+      }
+      this.functions = getFunctions(apps[0]);
+      this.functionsInitialized = true;
+      return this.functions;
+    } catch (err) {
+      console.error('[BusinessService] Failed to initialize Functions:', err);
+      throw new Error('Firebase Functions is not initialized. Please refresh the page and try again.');
+    }
   }
 
   /**
@@ -280,5 +309,161 @@ export class BusinessService {
     }
 
     return slug;
+  }
+
+  // ============ CUSTOM DOMAIN METHODS ============
+
+  /**
+   * Check if a custom domain is already claimed by another business.
+   * Returns the business ID if claimed, null if available.
+   */
+  async checkDomainConflict(domain: string, excludeBusinessId?: string): Promise<string | null> {
+    const normalized = normalizeDomain(domain);
+    if (!normalized || !isValidDomainHostname(normalized)) {
+      throw new Error('Invalid domain format');
+    }
+
+    const db = await this.getDb();
+    const q = query(
+      collection(db, this.collectionName),
+      where('customDomain.domain', '==', normalized)
+    );
+    const snapshot = await this.withTimeout(getDocs(q), 15000, 'checkDomainConflict');
+    
+    if (snapshot.empty) return null;
+    
+    const existingBusiness = snapshot.docs[0];
+    if (excludeBusinessId && existingBusiness.id === excludeBusinessId) return null;
+    
+    return existingBusiness.id;
+  }
+
+  /**
+   * Connect a custom domain to a business.
+   * Validates domain, checks for conflicts, and generates verification token.
+   */
+  async connectCustomDomain(businessId: string, domain: string): Promise<CustomDomainConfig> {
+    const normalized = normalizeDomain(domain);
+    if (!normalized || !isValidDomainHostname(normalized)) {
+      throw new Error('Invalid domain format. Please enter a valid hostname (e.g., example.com).');
+    }
+
+    // Check for conflicts with other businesses
+    const conflictId = await this.checkDomainConflict(normalized, businessId);
+    if (conflictId) {
+      throw new Error('This domain is already connected to another business.');
+    }
+
+    // Generate verification token
+    const verificationToken = generateVerificationToken();
+    const now = Timestamp.now();
+
+    const customDomainConfig: CustomDomainConfig = {
+      domain: normalized,
+      status: 'pending',
+      verificationToken,
+      verifiedAt: undefined,
+    };
+
+    await this.updateBusiness(businessId, {
+      customDomain: customDomainConfig,
+    });
+
+    return customDomainConfig;
+  }
+
+  /**
+   * Verify a custom domain by calling the server-side Cloud Function.
+   * The function performs secure DNS TXT record verification.
+   */
+  async verifyCustomDomain(businessId: string): Promise<CustomDomainConfig> {
+    const functions = await this.getFunctionsInstance();
+    const verifyFn = httpsCallable<{ businessId: string; domain: string }, { success: boolean; status?: string; error?: string; errorCode?: string }>(
+      functions,
+      'verifyCustomDomainFn'
+    );
+
+    // Get the business first to extract the domain
+    const business = await this.getBusinessById(businessId);
+    if (!business) {
+      throw new Error('Business not found');
+    }
+
+    const customDomain = business.customDomain;
+    if (!customDomain) {
+      throw new Error('No custom domain configured for this business');
+    }
+
+    if (customDomain.status === 'verified') {
+      throw new Error('Domain is already verified');
+    }
+
+    if (customDomain.status !== 'pending') {
+      throw new Error('Domain is not in pending state');
+    }
+
+    const domain = customDomain.domain;
+    if (!domain) {
+      throw new Error('Invalid domain configuration');
+    }
+
+    // Call the Cloud Function
+    const result = await verifyFn({ businessId, domain });
+
+    const data = result.data;
+    if (!data.success) {
+      // Handle specific error codes
+      if (data.errorCode === 'verification-record-not-found') {
+        throw new Error(data.error || 'We couldn\'t find the verification record yet. DNS changes can take time to propagate.');
+      }
+      throw new Error(data.error || 'Verification failed. Please try again.');
+    }
+
+    // Refresh business data to get updated customDomain
+    const updatedBusiness = await this.getBusinessById(businessId);
+    if (!updatedBusiness || !updatedBusiness.customDomain) {
+      throw new Error('Failed to retrieve updated business data');
+    }
+
+    return updatedBusiness.customDomain;
+  }
+
+  /**
+   * Disconnect a custom domain from a business.
+   * Sets status to 'disabled' and clears verification token.
+   */
+  async disconnectCustomDomain(businessId: string): Promise<void> {
+    const business = await this.getBusinessById(businessId);
+    if (!business) {
+      throw new Error('Business not found');
+    }
+
+    const customDomain = business.customDomain;
+    if (!customDomain) {
+      return; // Already disconnected
+    }
+
+    const disabledConfig: CustomDomainConfig = {
+      domain: customDomain.domain,
+      status: 'disabled',
+      verificationToken: undefined,
+      verifiedAt: customDomain.verifiedAt,
+    };
+
+    await this.updateBusiness(businessId, {
+      customDomain: disabledConfig,
+    });
+  }
+
+  /**
+   * Get the canonical public URL for a business.
+   * Uses custom domain if verified, otherwise falls back to platform demo URL.
+   */
+  getCanonicalUrl(business: Business, platformOrigin: string): string {
+    if (business.customDomain?.status === 'verified') {
+      const protocol = platformOrigin.startsWith('https://') ? 'https://' : 'http://';
+      return `${protocol}${business.customDomain.domain}`;
+    }
+    return `${platformOrigin}/demo/${business.slug}`;
   }
 }

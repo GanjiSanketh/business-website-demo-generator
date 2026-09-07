@@ -125,6 +125,20 @@
               @if (form.get('status')?.value === 'published') {
                 <button
                   type="button"
+                  class="bt-btn bt-btn-ghost"
+                  [disabled]="saving()"
+                  (click)="onSubmit('draft')"
+                  title="Unpublish - make the site private again"
+                >
+                  @if (saving()) {
+                    <span class="spinner"></span>
+                  } @else {
+                    <i class="bi bi-eye-slash"></i>
+                  }
+                  Unpublish
+                </button>
+                <button
+                  type="button"
                   class="bt-btn bt-btn-primary"
                   [disabled]="saving()"
                   (click)="onSubmit('published')"
@@ -579,10 +593,149 @@
                                   {{ opt.label }}
                                 </button>
                               }
-                            </div>
-                          </div>
-                        </div>
-                      }
+</div>
+                       </div>
+
+                       <!-- CUSTOM DOMAIN SECTION -->
+                       <div class="b-block-title b-block-title-gap">Custom Domain</div>
+                       <p class="b-field-hint">
+                         Connect your own domain (e.g., www.yourbusiness.com) for a professional web presence.
+                         Your site will remain accessible at the demo URL as well.
+                       </p>
+
+                       @if (!hasCustomDomain) {
+                         <!-- Connect Domain Form -->
+                         <div class="form-group">
+                           <label for="custom-domain-input">Your Domain</label>
+                           <div class="custom-domain-input-wrapper">
+                             <input
+                               id="custom-domain-input"
+                               type="text"
+                               [value]="customDomainInput()"
+                               (input)="customDomainInput.set($any($event.target).value)"
+                               placeholder="example.com or www.example.com"
+                               [class.invalid]="customDomainError() && customDomainInput()"
+                             />
+                           </div>
+                           @if (customDomainError()) {
+                             <p class="field-error">{{ customDomainError() }}</p>
+                           } @else {
+                             <p class="b-field-hint">
+                               Enter your domain name without http:// or trailing slash.
+                             </p>
+                           }
+                         </div>
+
+                         <button
+                           type="button"
+                           class="btn-save"
+                           (click)="connectCustomDomain()"
+                           [disabled]="customDomainStatus() === 'checking' || !customDomainInput().trim()"
+                         >
+                           @if (customDomainStatus() === 'checking') {
+                             <span class="mini-spinner"></span>
+                             Checking…
+                           } @else {
+                             <i class="bi bi-link-45deg"></i>
+                             Connect Domain
+                           }
+                         </button>
+                       } @else {
+                         <!-- Connected Domain Display -->
+                         <div class="custom-domain-connected">
+                           <div class="domain-status-card" [class.verified]="isCustomDomainVerified">
+                             <div class="domain-info">
+                               <div class="domain-name">{{ currentCustomDomain?.domain }}</div>
+                               <div class="domain-status-badge" [class.verified]="isCustomDomainVerified" [class.pending]="!isCustomDomainVerified">
+                                 <i class="bi" [ngClass]="isCustomDomainVerified ? 'bi-check-circle-fill' : 'bi-hourglass-split'"></i>
+                                 <span>{{ isCustomDomainVerified ? 'Verified' : 'Pending Verification' }}</span>
+                               </div>
+                             </div>
+
+                             @if (!isCustomDomainVerified) {
+                               <!-- Verification Instructions -->
+                               <div class="verification-instructions">
+                                 <h4>Verify Domain Ownership</h4>
+                                 <p>Add a TXT record to your domain's DNS settings:</p>
+                                 <div class="dns-record">
+                                   <div class="dns-field">
+                                     <label>Type</label>
+                                     <code>TXT</code>
+                                   </div>
+                                   <div class="dns-field">
+                                     <label>Host / Name</label>
+                                     <code>{{ verificationTxtHost }}</code>
+                                   </div>
+                                   <div class="dns-field">
+                                     <label>Value</label>
+                                     <code>{{ verificationTxtValue }}</code>
+                                     <button
+                                       type="button"
+                                       class="btn-copy-small"
+                                       (click)="copyVerificationToken()"
+                                       title="Copy verification token"
+                                       aria-label="Copy verification token"
+                                     >
+                                       <i class="bi bi-clipboard"></i>
+                                     </button>
+                                   </div>
+                                 </div>
+                                 <p class="dns-hint">
+                                   DNS changes may take up to 48 hours to propagate.
+                                   <a href="https://support.google.com/domains/answer/3290350" target="_blank" rel="noopener">
+                                     How to add a TXT record
+                                   </a>
+                                 </p>
+
+                                 <div class="verification-actions">
+                                   <button
+                                     type="button"
+                                     class="btn-save"
+                                     (click)="toggleVerificationToken()"
+                                   >
+                                     <i class="bi" [ngClass]="showVerificationToken() ? 'bi-eye-slash' : 'bi-eye'"></i>
+                                     {{ showVerificationToken() ? 'Hide' : 'Show' }} Token
+                                   </button>
+                                   <button
+                                     type="button"
+                                     class="btn-primary"
+                                     (click)="verifyCustomDomain()"
+                                     [disabled]="customDomainVerifying()"
+                                   >
+                                     @if (customDomainVerifying()) {
+                                       <span class="mini-spinner"></span>
+                                       Checking…
+                                     } @else {
+                                       <i class="bi bi-shield-check"></i>
+                                       Check Verification
+                                     }
+                                   </button>
+                                 </div>
+                               </div>
+                             } @else {
+                               <p class="b-field-hint success-hint">
+                                 <i class="bi bi-check-circle-fill"></i>
+                                 Your custom domain is active! Visitors can now access your site at
+                                 <code>https://{{ currentCustomDomain?.domain }}</code>
+                               </p>
+                             }
+
+                             <div class="domain-actions">
+                               <button
+                                 type="button"
+                                 class="btn-ghost"
+                                 (click)="disconnectCustomDomain()"
+                               >
+                                 <i class="bi bi-link-45deg"></i>
+                                 Disconnect Domain
+                               </button>
+                             </div>
+                           </div>
+                         </div>
+                       }
+
+                     </div>
+                   }
                     </div>
                   }
                   @case ('content') {

@@ -13,6 +13,7 @@ import {
 import { resolveThemeConfig, ThemeConfig } from '../themes/theme.registry';
 import { getCategoryById } from '../categories/category.registry';
 import { getFaqs, getSocialLinks } from '../shared/advanced-features';
+import { isCustomDomainActive, getCanonicalUrl } from '../shared/domain-utils';
 
 import '../templates/template.init';
 
@@ -96,6 +97,8 @@ export class DemoPageComponent implements OnInit, OnDestroy {
   private setSeoMetadata(business: Business, slug: string): void {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const pageUrl = origin ? `${origin}/demo/${slug}` : `/demo/${slug}`;
+    // Use custom domain as canonical URL if verified, otherwise use demo URL
+    const canonicalUrl = getCanonicalUrl(business, origin);
 
     // --- Title ---
     const title = business.seoTitle?.trim()
@@ -123,7 +126,8 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     if (ogImage) {
       this.setMetaTag('property', 'og:image', ogImage);
     }
-    this.setMetaTag('property', 'og:url', pageUrl);
+    // Use canonical URL for og:url when custom domain is verified
+    this.setMetaTag('property', 'og:url', canonicalUrl);
     this.setMetaTag('property', 'og:type', ogType);
     this.setMetaTag('property', 'og:site_name', business.businessName);
 
@@ -137,7 +141,7 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     }
 
     // --- Canonical URL ---
-    this.setLinkTag('canonical', pageUrl);
+    this.setLinkTag('canonical', canonicalUrl);
 
     // --- Favicon ---
     const faviconUrl = business.faviconUrl || business.logoUrl;
@@ -147,8 +151,8 @@ export class DemoPageComponent implements OnInit, OnDestroy {
     }
 
     // --- JSON-LD Structured Data ---
-    this.injectJsonLd(business, pageUrl, ogImage);
-    this.injectFaqJsonLd(business, pageUrl);
+    this.injectJsonLd(business, canonicalUrl, ogImage);
+    this.injectFaqJsonLd(business, canonicalUrl);
   }
 
   /** Helper to set/update a meta tag. */

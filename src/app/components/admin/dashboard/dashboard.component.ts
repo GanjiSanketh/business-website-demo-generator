@@ -12,6 +12,7 @@ import {
 } from '../../demo/templates/template.registry';
 import { getThemeDisplayName } from '../../demo/themes/theme.registry';
 import { getCategoryDisplayName } from '../../demo/categories/category.registry';
+import { isCustomDomainActive } from '../../demo/shared/domain-utils';
 
 type StatusFilter = 'all' | 'published' | 'draft';
 
@@ -233,5 +234,22 @@ export class DashboardComponent implements OnInit {
   /** Friendly category name ("salon"/"Salon" → "Salon & Beauty"). */
   getCategoryLabel(business: Business): string {
     return getCategoryDisplayName(business.category);
+  }
+
+  /** Check if business has a verified custom domain. */
+  hasVerifiedCustomDomain(business: Business): boolean {
+    return isCustomDomainActive(business.customDomain);
+  }
+
+  /** Get custom domain display string. */
+  getCustomDomainLabel(business: Business): string {
+    const cd = business.customDomain;
+    if (!cd?.domain) return '';
+    const statusLabels: Record<string, string> = {
+      pending: 'Pending',
+      verified: 'Verified',
+      disabled: 'Disabled',
+    };
+    return `${cd.domain} (${statusLabels[cd.status] || cd.status})`;
   }
 }

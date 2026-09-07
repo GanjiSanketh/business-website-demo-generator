@@ -1,6 +1,13 @@
 import { Timestamp } from 'firebase/firestore';
 import { ThemeOptions } from '../components/demo/themes/theme.registry';
 
+export interface CustomDomainConfig {
+  domain: string;
+  status: 'pending' | 'verified' | 'disabled';
+  verificationToken?: string;
+  verifiedAt?: Timestamp | string;
+}
+
 export interface ServiceItem {
   name: string;
   description: string;
@@ -108,6 +115,8 @@ export interface Business {
   primaryCta?: PrimaryCta;
   /** Optional announcement/promotion bar. */
   announcement?: AnnouncementConfig;
+  /** Optional custom domain configuration. */
+  customDomain?: CustomDomainConfig;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

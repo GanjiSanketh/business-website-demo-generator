@@ -1,13 +1,17 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "openrouter": {
+    "experimental": {
+      "options": {
+        "baseURL": "https://api.experimentallabs.ai/v1",
+        "apiKey": "xpl_bc7d4fd984651c57cecd5d2c49046a3a6da25392"
+      },
       "models": {
-        "z-ai/glm-5.3-flash": {
-          "name": "GLM-5.3-Flash (Ox Alpha)"
+        "claude-fable-5.1": {
+          "name": "Claude Fable 5.1"
         }
       }
     }
   },
-  "model": "openrouter/z-ai/glm-5.3-flash"
+  "model": "experimental/claude-fable-5.1"
 }
