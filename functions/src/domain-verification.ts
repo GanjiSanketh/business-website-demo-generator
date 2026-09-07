@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { resolveTxt } from 'dns/promises';
+import { checkAuthorization, CallableRequest } from './auth';
 
 export interface VerifyCustomDomainRequest {
   businessId: string;
@@ -9,53 +10,13 @@ export interface VerifyCustomDomainRequest {
 
 export interface VerifyCustomDomainResponse {
   success: boolean;
-  status?: 'verified' | 'pending' | 'disabled';
+  status?: 'verified' | 'pending' | 'disabled' | 'live';
   error?: string;
   errorCode?: string;
 }
 
-type CallableRequest<T> = {
-  data: T;
-  auth?: {
-    uid: string;
-    token: {
-      email?: string;
-      [key: string]: any;
-    };
-  };
-  app?: any;
-  instanceIdToken?: string;
-  rawRequest: any;
-  acceptsStreaming: boolean;
-};
-
-const ALLOWED_EMAILS = ['gsanketh7121@gmail.com'];
 const VERIFICATION_TXT_HOST = '_demosite-verification';
 const VERIFICATION_TXT_PREFIX = 'demosite-verification=';
-
-/**
- * Validates that the user is authenticated and authorized.
- */
-async function checkAuthorization(
-  auth: CallableRequest<any>['auth']
-): Promise<{ uid: string; email: string }> {
-  if (!auth) {
-    throw new functions.https.HttpsError(
-      'unauthenticated',
-      'Authentication required'
-    );
-  }
-
-  const email = auth.token.email;
-  if (!email || !ALLOWED_EMAILS.includes(email)) {
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      'You are not authorized to verify this domain'
-    );
-  }
-
-  return { uid: auth.uid, email };
-}
 
 /**
  * Normalizes a domain to lowercase hostname without protocol/trailing slash.
@@ -154,7 +115,9 @@ async function queryVerificationTxtRecord(
 }
 
 /**
- * Checks if another business already has this domain verified.
+ * Checks if another business already has this domain serving (verified or
+ * live). A domain that is already live for one business must never be
+ * handed to another.
  */
 async function checkVerifiedDomainConflict(
   db: admin.firestore.Firestore,
@@ -164,7 +127,7 @@ async function checkVerifiedDomainConflict(
   const snapshot = await db
     .collection('businesses')
     .where('customDomain.domain', '==', domain)
-    .where('customDomain.status', '==', 'verified')
+    .where('customDomain.status', 'in', ['verified', 'live'])
     .limit(1)
     .get();
 
@@ -241,7 +204,7 @@ export async function verifyCustomDomain(
 
   // 8. Verify status is pending
   if (customDomain.status !== 'pending') {
-    if (customDomain.status === 'verified') {
+    if (customDomain.status === 'verified' || customDomain.status === 'live') {
       throw new functions.https.HttpsError(
         'failed-precondition',
         'Domain is already verified'

@@ -6,6 +6,10 @@
 /out-tsc
 /bazel-out
 
+# Angular SSR bundle copied into the functions package by scripts/copy-ssr.js
+/functions/app
+/functions/lib/ssr.cjs
+
 # Node
 /node_modules
 npm-debug.log

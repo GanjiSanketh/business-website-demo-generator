@@ -5,7 +5,9 @@
     "ng": "ng",
     "prestart": "node scripts/setup-env.js",
     "start": "node --max-old-space-size=4096 ./node_modules/@angular/cli/bin/ng.js serve --host 0.0.0.0",
-    "build": "ng build",
+    "build": "node --max-old-space-size=4096 ./node_modules/@angular/cli/bin/ng.js build",
+    "copy-ssr": "node scripts/copy-ssr.js",
+    "deploy": "npm run build && npm run copy-ssr && firebase deploy",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:business-demo-generator": "node dist/business-demo-generator/server/server.mjs"

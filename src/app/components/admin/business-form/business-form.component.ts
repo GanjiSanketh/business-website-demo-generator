@@ -135,6 +135,8 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
   customDomainError = signal('');
   customDomainVerifying = signal(false);
   showVerificationToken = signal(false);
+  customDomainLiveChecking = signal(false);
+  customDomainLiveResult = signal('');
   private customDomainOriginal: CustomDomainConfig | null = null;
 
   // ---- Builder workspace (edit mode) ----
@@ -1015,7 +1017,10 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         if (business.customDomain.status === 'pending') {
           this.customDomainStatus.set('connected');
           this.showVerificationToken.set(true);
-        } else if (business.customDomain.status === 'verified') {
+        } else if (
+          business.customDomain.status === 'verified' ||
+          business.customDomain.status === 'live'
+        ) {
           this.customDomainStatus.set('connected');
           this.showVerificationToken.set(false);
         }
@@ -1822,7 +1827,8 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     if (!cd?.domain) return '';
     const statusLabels: Record<string, string> = {
       pending: 'Pending verification',
-      verified: 'Verified',
+      verified: 'Ownership verified',
+      live: 'Live',
       disabled: 'Disabled',
     };
     return `${cd.domain} · ${statusLabels[cd.status] || cd.status}`;
@@ -1910,6 +1916,47 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       }
     } finally {
       this.customDomainVerifying.set(false);
+    }
+  }
+
+  /**
+   * Ask the server to probe the verified domain over HTTPS and mark it
+   * 'live' when the application demonstrably serves this business' published
+   * demo on the domain. Ownership verification (TXT) alone never means the
+   * domain is live: the operator must first add the domain to Firebase
+   * Hosting and point its DNS at Firebase Hosting.
+   */
+  async checkCustomDomainLive(): Promise<void> {
+    if (!this.businessId()) return;
+    this.customDomainLiveChecking.set(true);
+    this.customDomainLiveResult.set('');
+    try {
+      const result = await this.businessService.checkCustomDomainLive(
+        this.businessId()
+      );
+      if (result.live) {
+        // Refresh the stored config so the badge switches to Live.
+        const business = await this.businessService.getBusinessById(
+          this.businessId()
+        );
+        if (business?.customDomain) {
+          this.customDomainOriginal = { ...business.customDomain };
+        }
+        this.customDomainLiveResult.set(
+          result.message || 'Live! The domain is serving this business.'
+        );
+      } else {
+        this.customDomainLiveResult.set(
+          result.message ||
+            'Not live yet. Add the domain to Firebase Hosting and point DNS at it, then check again.'
+        );
+      }
+    } catch (err: any) {
+      this.customDomainLiveResult.set(
+        err?.message || 'Live check failed. Please try again.'
+      );
+    } finally {
+      this.customDomainLiveChecking.set(false);
     }
   }
 

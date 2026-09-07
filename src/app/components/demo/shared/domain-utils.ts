@@ -162,10 +162,47 @@ export function getVerificationTxtValue(token: string): string {
 }
 
 /**
- * Check if a custom domain config is verified and active.
+ * Check if a custom domain config is verified and active (verified =
+ * ownership proven; live = ownership proven AND the app demonstrably serves
+ * on the domain). Both count as "active" for canonical URL / SEO purposes.
  */
 export function isCustomDomainActive(config: { status?: string } | undefined): boolean {
-  return config?.status === 'verified';
+  return config?.status === 'verified' || config?.status === 'live';
+}
+
+/**
+ * Normalize a Host header / hostname for lookups: lowercase, no port, no
+ * trailing dot. Does NOT strip 'www.' — exact stored matches are tried
+ * first, then the www-less variant in business lookups.
+ */
+export function normalizeHostname(host?: string | null): string {
+  if (!host) return '';
+  let h = host.trim().toLowerCase();
+  // Strip :port (IPv6 literal hosts are bracketed, so a bare '[' keeps
+  // '::1' intact — but '::1' is a platform host anyway and never a custom
+  // domain candidate).
+  if (!h.startsWith('[')) {
+    const colon = h.indexOf(':');
+    if (colon !== -1) h = h.slice(0, colon);
+  }
+  h = h.replace(/\.$/, '');
+  return h;
+}
+
+/**
+ * Hosts that belong to the platform itself (never customer custom domains):
+ * local development, Firebase default app domains, and preview/QA suffixes.
+ * Requests on these hosts use normal routing (the root redirects to /admin,
+ * demos live at /demo/:slug).
+ */
+export function isPlatformHost(host?: string | null): boolean {
+  const h = normalizeHostname(host);
+  if (!h) return true;
+  if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(h)) return true;
+  if (h.endsWith('.local') || h.endsWith('.internal')) return true;
+  // Firebase default app domains for the project (and any future hosting site).
+  if (h.endsWith('.web.app') || h.endsWith('.firebaseapp.com')) return true;
+  return false;
 }
 
 /**
