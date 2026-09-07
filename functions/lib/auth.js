@@ -33,33 +33,30 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ssr = exports.checkCustomDomainLiveFn = exports.verifyCustomDomainFn = void 0;
+exports.ALLOWED_EMAILS = void 0;
+exports.checkAuthorization = checkAuthorization;
 const functions = __importStar(require("firebase-functions/v2"));
-const admin = __importStar(require("firebase-admin"));
-const domain_verification_1 = require("./domain-verification");
-const domain_liveness_1 = require("./domain-liveness");
-// The Angular SSR bundle is loaded through a CommonJS bridge (functions/src/
-// ssr.cjs → functions/lib/ssr.cjs, copied by scripts/copy-ssr.js) because the
-// bundle is ESM while this package compiles to CommonJS.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ssrHandler } = require('./ssr.cjs');
-admin.initializeApp();
 /**
- * Callable function to verify a custom domain by checking DNS TXT records.
+ * Shared authorization for callable Cloud Functions.
  *
- * Requires authentication and authorization.
- * Verifies business ownership and domain ownership via DNS.
+ * The application's authorization model is an email allowlist (see
+ * src/app/services/auth.service.ts on the client). Every callable function
+ * that touches custom domains or publishing must go through this check so
+ * the allowlist stays in a single place.
  */
-exports.verifyCustomDomainFn = functions.https.onCall(domain_verification_1.verifyCustomDomain);
+exports.ALLOWED_EMAILS = ['gsanketh7121@gmail.com'];
 /**
- * Callable function that probes a verified custom domain over HTTPS and
- * flips it to 'live' when the application actually serves the business'
- * published demo on that domain.
+ * Validates that the caller is authenticated AND on the allowlist.
+ * Throws an HttpsError otherwise.
  */
-exports.checkCustomDomainLiveFn = functions.https.onCall(domain_liveness_1.checkCustomDomainLive);
-/**
- * Firebase Hosting → Cloud Functions v2 rewrite target for the Angular SSR
- * application (see the hosting.rewrites block in firebase.json).
- */
-exports.ssr = functions.https.onRequest(ssrHandler);
-//# sourceMappingURL=index.js.map
+async function checkAuthorization(auth) {
+    if (!auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+    const email = auth.token.email;
+    if (!email || !exports.ALLOWED_EMAILS.includes(email)) {
+        throw new functions.https.HttpsError('permission-denied', 'You are not authorized to perform this action');
+    }
+    return { uid: auth.uid, email };
+}
+//# sourceMappingURL=auth.js.map

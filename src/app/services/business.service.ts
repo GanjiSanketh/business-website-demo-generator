@@ -19,7 +19,13 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AuthService } from './auth.service';
 import { Business, CustomDomainConfig } from '../models/business.model';
-import { normalizeDomain, isValidDomainHostname, generateVerificationToken } from '../components/demo/shared/domain-utils';
+import {
+  normalizeDomain,
+  isValidDomainHostname,
+  generateVerificationToken,
+  normalizeHostname,
+  isPlatformHost,
+} from '../components/demo/shared/domain-utils';
 
 @Injectable({ providedIn: 'root' })
 export class BusinessService {
@@ -160,6 +166,54 @@ export class BusinessService {
     return { id: d.id, ...d.data() } as Business;
   }
 
+  /** Short-lived host → slug cache so custom-domain requests don't pay a
+   *  Firestore read on every navigation. */
+  private hostSlugCache = new Map<string, { slug: string; expiresAt: number }>();
+  private static readonly HOST_CACHE_TTL_MS = 60_000;
+
+  /**
+   * Resolve the published business serving a custom-domain host (used by
+   * host-based demo routing — the root '/' of a verified/live custom domain
+   * renders the owning business' demo). Only businesses whose custom domain
+   * is ownership-verified ('verified') or confirmed live ('live') AND whose
+   * status is 'published' are ever resolved this way.
+   */
+  async getBusinessByHost(host: string): Promise<Business | null> {
+    const key = normalizeHostname(host);
+    if (!key || isPlatformHost(key)) return null;
+
+    const cached = this.hostSlugCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.slug ? this.getBusinessBySlug(cached.slug) : null;
+    }
+
+    const db = await this.getDb();
+    // Exact match first, then the www-less variant (so a domain connected as
+    // "example.com" also answers on "www.example.com" and vice versa).
+    const candidates = [...new Set([key, key.replace(/^www\./, '')])];
+    let slug = '';
+    for (const candidate of candidates) {
+      const q = query(
+        collection(db, this.collectionName),
+        where('customDomain.domain', '==', candidate),
+        where('customDomain.status', 'in', ['verified', 'live']),
+        where('status', '==', 'published')
+      );
+      const snapshot = await this.withTimeout(getDocs(q), 15000, 'getBusinessByHost');
+      if (!snapshot.empty) {
+        const d = snapshot.docs[0];
+        slug = (d.data() as { slug?: string }).slug ?? '';
+        if (slug) break;
+      }
+    }
+
+    this.hostSlugCache.set(key, {
+      slug,
+      expiresAt: Date.now() + BusinessService.HOST_CACHE_TTL_MS,
+    });
+    return slug ? this.getBusinessBySlug(slug) : null;
+  }
+
   async createBusiness(business: Business): Promise<string> {
     const db = await this.getDb();
     const now = Timestamp.now();
@@ -178,6 +232,10 @@ export class BusinessService {
       createdAt: now,
       updatedAt: now,
     };
+
+    if (business.status === 'published') {
+      dataToSave['publishedAt'] = now;
+    }
 
     if (business.logoUrl) {
       dataToSave['logoUrl'] = business.logoUrl;
@@ -236,6 +294,25 @@ export class BusinessService {
         cleanData[key] = value;
       }
     }
+    // Publishing foundation: when a business transitions to 'published' and
+    // has no publish date yet, stamp it (covers every publish path — builder
+    // save, dashboard toggle, API callers). Kept on unpublish as history.
+    if (cleanData['status'] === 'published' && cleanData['publishedAt'] === undefined) {
+      try {
+        const existing = await this.withTimeout(
+          getDoc(docRef),
+          15000,
+          'updateBusiness.readForPublish'
+        );
+        if (!existing.exists() || !(existing.data() as DocumentData)?.['publishedAt']) {
+          cleanData['publishedAt'] = Timestamp.now();
+        }
+      } catch (err) {
+        console.warn('[BusinessService] Could not read existing publishedAt, stamping now:', err);
+        cleanData['publishedAt'] = Timestamp.now();
+      }
+    }
+
     cleanData['updatedAt'] = Timestamp.now();
 
     try {
@@ -429,6 +506,22 @@ export class BusinessService {
   }
 
   /**
+   * Ask the server to probe a verified custom domain over HTTPS and mark it
+   * 'live' when the application demonstrably serves the business' published
+   * demo on that domain. See the checkCustomDomainLiveFn Cloud Function.
+   */
+  async checkCustomDomainLive(businessId: string): Promise<{ live: boolean; status?: string; message?: string }> {
+    const functions = await this.getFunctionsInstance();
+    const checkFn = httpsCallable<
+      { businessId: string },
+      { live: boolean; status?: string; message?: string }
+    >(functions, 'checkCustomDomainLiveFn');
+
+    const result = await checkFn({ businessId });
+    return result.data;
+  }
+
+  /**
    * Disconnect a custom domain from a business.
    * Sets status to 'disabled' and clears verification token.
    */
@@ -460,7 +553,10 @@ export class BusinessService {
    * Uses custom domain if verified, otherwise falls back to platform demo URL.
    */
   getCanonicalUrl(business: Business, platformOrigin: string): string {
-    if (business.customDomain?.status === 'verified') {
+    if (
+      business.customDomain?.status === 'verified' ||
+      business.customDomain?.status === 'live'
+    ) {
       const protocol = platformOrigin.startsWith('https://') ? 'https://' : 'http://';
       return `${protocol}${business.customDomain.domain}`;
     }

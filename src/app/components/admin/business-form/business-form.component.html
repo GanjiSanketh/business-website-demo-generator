@@ -648,7 +648,7 @@
                                <div class="domain-name">{{ currentCustomDomain?.domain }}</div>
                                <div class="domain-status-badge" [class.verified]="isCustomDomainVerified" [class.pending]="!isCustomDomainVerified">
                                  <i class="bi" [ngClass]="isCustomDomainVerified ? 'bi-check-circle-fill' : 'bi-hourglass-split'"></i>
-                                 <span>{{ isCustomDomainVerified ? 'Verified' : 'Pending Verification' }}</span>
+                                 <span>{{ currentCustomDomain?.status === 'live' ? 'Live' : (isCustomDomainVerified ? 'Ownership Verified' : 'Pending Verification') }}</span>
                                </div>
                              </div>
 
@@ -713,11 +713,46 @@
                                  </div>
                                </div>
                              } @else {
-                               <p class="b-field-hint success-hint">
-                                 <i class="bi bi-check-circle-fill"></i>
-                                 Your custom domain is active! Visitors can now access your site at
-                                 <code>https://{{ currentCustomDomain?.domain }}</code>
-                               </p>
+                               <div class="live-status">
+                                 @if (currentCustomDomain?.status === 'live') {
+                                   <p class="b-field-hint success-hint">
+                                     <i class="bi bi-check-circle-fill"></i>
+                                     This domain is <strong>LIVE</strong> —
+                                     <code>https://{{ currentCustomDomain?.domain }}</code>
+                                     is serving this business' published demo.
+                                   </p>
+                                 } @else {
+                                   <p class="b-field-hint">
+                                     <strong>Ownership verified.</strong> The domain is not live yet.
+                                     Serving your site on this domain requires three steps:
+                                   </p>
+                                   <ol class="live-steps">
+                                     <li>Add the domain to Firebase Hosting (Hosting &rarr; Add custom domain).</li>
+                                     <li>Point the domain's DNS (A or CNAME record) at Firebase Hosting.</li>
+                                     <li>Click <em>Check live status</em> — it probes the domain and confirms
+                                         your demo is actually being served.</li>
+                                   </ol>
+                                   <div class="verification-actions">
+                                     <button
+                                       type="button"
+                                       class="btn-primary"
+                                       (click)="checkCustomDomainLive()"
+                                       [disabled]="customDomainLiveChecking()"
+                                     >
+                                       @if (customDomainLiveChecking()) {
+                                         <span class="mini-spinner"></span>
+                                         Checking…
+                                       } @else {
+                                         <i class="bi bi-radioactive"></i>
+                                         Check Live Status
+                                       }
+                                     </button>
+                                   </div>
+                                   @if (customDomainLiveResult()) {
+                                     <p class="field-error live-result">{{ customDomainLiveResult() }}</p>
+                                   }
+                                 }
+                               </div>
                              }
 
                              <div class="domain-actions">

@@ -37,22 +37,9 @@ exports.verifyCustomDomain = verifyCustomDomain;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const promises_1 = require("dns/promises");
-const ALLOWED_EMAILS = ['gsanketh7121@gmail.com'];
+const auth_1 = require("./auth");
 const VERIFICATION_TXT_HOST = '_demosite-verification';
 const VERIFICATION_TXT_PREFIX = 'demosite-verification=';
-/**
- * Validates that the user is authenticated and authorized.
- */
-async function checkAuthorization(auth) {
-    if (!auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
-    }
-    const email = auth.token.email;
-    if (!email || !ALLOWED_EMAILS.includes(email)) {
-        throw new functions.https.HttpsError('permission-denied', 'You are not authorized to verify this domain');
-    }
-    return { uid: auth.uid, email };
-}
 /**
  * Normalizes a domain to lowercase hostname without protocol/trailing slash.
  */
@@ -160,13 +147,15 @@ async function queryVerificationTxtRecord(domain, expectedToken) {
     }
 }
 /**
- * Checks if another business already has this domain verified.
+ * Checks if another business already has this domain serving (verified or
+ * live). A domain that is already live for one business must never be
+ * handed to another.
  */
 async function checkVerifiedDomainConflict(db, domain, excludeBusinessId) {
     const snapshot = await db
         .collection('businesses')
         .where('customDomain.domain', '==', domain)
-        .where('customDomain.status', '==', 'verified')
+        .where('customDomain.status', 'in', ['verified', 'live'])
         .limit(1)
         .get();
     if (snapshot.empty)
@@ -180,7 +169,7 @@ async function checkVerifiedDomainConflict(db, domain, excludeBusinessId) {
  */
 async function verifyCustomDomain(request) {
     // 1. Check authentication and authorization
-    const { uid } = await checkAuthorization(request.auth);
+    const { uid } = await (0, auth_1.checkAuthorization)(request.auth);
     // 2. Validate input
     const { businessId, domain } = request.data;
     if (!businessId || !domain) {
@@ -214,7 +203,7 @@ async function verifyCustomDomain(request) {
     }
     // 8. Verify status is pending
     if (customDomain.status !== 'pending') {
-        if (customDomain.status === 'verified') {
+        if (customDomain.status === 'verified' || customDomain.status === 'live') {
             throw new functions.https.HttpsError('failed-precondition', 'Domain is already verified');
         }
         throw new functions.https.HttpsError('failed-precondition', 'Domain is not in pending state');

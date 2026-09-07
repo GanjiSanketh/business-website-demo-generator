@@ -62,21 +62,39 @@ export class DemoPageComponent implements OnInit, OnDestroy {
   }
 
   private async loadBusiness(): Promise<void> {
-    const slug = this.route.snapshot.paramMap.get('slug');
+    let slug = this.route.snapshot.paramMap.get('slug');
+    let business: Business | null = null;
+
     if (!slug) {
-      this.notFound.set(true);
-      this.loading.set(false);
-      return;
+      // Host-based serving: the root ('/') of a verified/live custom domain
+      // renders the owning business' demo. The SSR middleware rewrites such
+      // requests to /demo/:slug before Angular runs, so this branch is only
+      // exercised by the hydrated client at '/' (kept on the demo page by
+      // hostDemoGuard).
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      if (host) {
+        business = await this.businessService.getBusinessByHost(host);
+        if (business) slug = business.slug;
+      }
+      if (!business) {
+        this.notFound.set(true);
+        this.loading.set(false);
+        return;
+      }
     }
 
     try {
-      const business = await this.businessService.getBusinessBySlug(slug);
+      if (!business) {
+        business = await this.businessService.getBusinessBySlug(slug!);
+      }
       if (!business) {
         this.notFound.set(true);
       } else {
         this.business.set(business);
         // Set all SEO metadata
-        this.setSeoMetadata(business, slug);
+        // slug is non-null here: either the route param or the resolved
+        // business' own slug from the host fallback above.
+        this.setSeoMetadata(business, slug!);
         // Render the template
         this.renderTemplate(business.templateId);
       }

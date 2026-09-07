@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ------------------------------------------------------------------
+    // Authorization model (must match src/app/services/auth.service.ts):
+    //   - Firebase Auth (Google sign-in) with an email allowlist.
+    //   - Admin = signed in AND email in ALLOWED_EMAILS.
+    // Firestore rules CAN evaluate request.auth.token.email, so the same
+    // allowlist is enforced here for direct client access.
+    // ------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'gsanketh7121@gmail.com';
+    }
+
+    // ------------------------------------------------------------------
+    // businesses — the only collection used by the application.
+    //
+    //   - Public (anonymous) read: published businesses only — this is what
+    //     /demo/:slug and custom-domain serving need.
+    //   - Admin read: everything (dashboard lists drafts too).
+    //   - Write (create/update/delete): admin only. This protects drafts,
+    //     publishing state, and the customDomain sub-document (connect,
+    //     verify, disconnect are all writes performed by the admin client;
+    //     verifyCustomDomainFn/checkCustomDomainLiveFn use the Admin SDK and
+    //     bypass these rules by design).
+    // ------------------------------------------------------------------
+    match /businesses/{businessId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Everything else is denied by default.
+  }
+}

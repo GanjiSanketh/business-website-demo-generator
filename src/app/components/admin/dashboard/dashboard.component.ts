@@ -247,7 +247,8 @@ export class DashboardComponent implements OnInit {
     if (!cd?.domain) return '';
     const statusLabels: Record<string, string> = {
       pending: 'Pending',
-      verified: 'Verified',
+      verified: 'Ownership verified',
+      live: 'Live',
       disabled: 'Disabled',
     };
     return `${cd.domain} (${statusLabels[cd.status] || cd.status})`;

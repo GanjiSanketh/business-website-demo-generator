@@ -3,7 +3,18 @@ import { ThemeOptions } from '../components/demo/themes/theme.registry';
 
 export interface CustomDomainConfig {
   domain: string;
-  status: 'pending' | 'verified' | 'disabled';
+  /**
+   * Custom domain lifecycle:
+   *   - 'pending'   — connected, TXT ownership record not yet confirmed.
+   *   - 'verified'  — DNS TXT ownership proven. NOT automatically served:
+   *                   the domain must still be added to Firebase Hosting and
+   *                   its DNS pointed at Firebase Hosting.
+   *   - 'live'      — an HTTPS probe confirmed this application serves the
+   *                   business' published demo on the domain (see the
+   *                   checkCustomDomainLiveFn Cloud Function).
+   *   - 'disabled'  — disconnected by the admin.
+   */
+  status: 'pending' | 'verified' | 'live' | 'disabled';
   verificationToken?: string;
   verifiedAt?: Timestamp | string;
 }
@@ -88,6 +99,9 @@ export interface Business {
   services?: ServiceItem[];
   slug: string;
   status: 'draft' | 'published';
+  /** Set once when the business transitions to 'published' (persisted so
+   *  published businesses carry a clear publish date). */
+  publishedAt?: Timestamp;
   /** Selected theme preset id; resolved against the theme registry with a
    *  sensible per-template default when absent. */
   themeId?: string;
