@@ -15,7 +15,7 @@ import * as admin from 'firebase-admin';
 // ---------------------------------------------------------------------------
 
 export type PlanId = 'free' | 'pro' | 'business';
-export type SubscriptionStatus = 'active' | 'trialing' | 'inactive' | 'cancelled' | 'past_due';
+export type SubscriptionStatus = 'active' | 'inactive' | 'cancelled' | 'past_due';
 
 export interface PlanLimits {
   maxBusinesses: number | null;
@@ -99,6 +99,15 @@ export const PLAN_IDS: PlanId[] = ['free', 'pro', 'business'];
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
+
+const PLAN_HIERARCHY: PlanId[] = ['free', 'pro', 'business'];
+
+/**
+ * Check whether a plan change constitutes an upgrade (vs. downgrade or same).
+ */
+export function isPlanUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
+  return PLAN_HIERARCHY.indexOf(targetPlan) > PLAN_HIERARCHY.indexOf(currentPlan);
+}
 
 export function isUnlimited(value: number | null): boolean {
   return value === null;
@@ -302,14 +311,14 @@ export async function enforceCustomDomainLimit(
 
 /**
  * Check whether the subscription status allows the operation.
- * Only 'active' and 'trialing' statuses allow business operations.
+ * Only 'active' status allows business operations.
  * Free plan users are always allowed — they have no paid subscription to enforce.
  */
 export function enforceSubscriptionActive(status: SubscriptionStatus, plan: PlanId): EnforcementResult {
   if (plan === 'free') {
     return { allowed: true };
   }
-  if (status === 'active' || status === 'trialing') {
+  if (status === 'active') {
     return { allowed: true };
   }
   return {

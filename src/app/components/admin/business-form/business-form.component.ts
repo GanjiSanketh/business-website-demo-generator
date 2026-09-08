@@ -1633,7 +1633,18 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
 
       // Create or update
       if (this.isEditMode()) {
-        await this.businessService.updateBusiness(businessId, businessData);
+        // Strip status/publishedAt — publishing must go through publishBusiness()
+        const { status: _status, publishedAt: _pubAt, ...contentData } = businessData as any;
+        const previousStatus = this.form.get('status')?.value || (await this.businessService.getBusinessById(businessId))?.status;
+
+        await this.businessService.updateBusiness(businessId, contentData);
+
+        // Handle publish/unpublish transitions through server-authoritative paths
+        if (formStatus === 'published' && previousStatus !== 'published') {
+          await this.businessService.publishBusiness(businessId);
+        } else if (formStatus === 'draft' && previousStatus === 'published') {
+          await this.businessService.unpublishBusiness(businessId);
+        }
       } else {
         businessId = await this.businessService.createBusiness(businessData as Business);
         this.businessId.set(businessId);

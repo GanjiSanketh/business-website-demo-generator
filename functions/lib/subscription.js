@@ -1,15 +1,16 @@
 "use strict";
 /**
- * Subscription status retrieval.
+ * Subscription management Cloud Functions.
  *
- * Provides a Cloud Function that returns the current subscription status
- * for the authenticated user. Used by the frontend to get authoritative
- * subscription state.
+ * Provides:
+ * - getSubscriptionStatus: read current subscription state
+ * - cancelSubscription: cancel a subscription via Razorpay
  *
  * Security:
  * - Requires authenticated user
- * - Users can only read their own subscription status
- * - Admin users can read any user's subscription status
+ * - Users can only manage their own subscription
+ * - Admins can manage any subscription
+ * - All mutations go through Razorpay API (authoritative)
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -46,17 +47,15 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSubscriptionStatus = getSubscriptionStatus;
+exports.cancelSubscription = cancelSubscription;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const auth_1 = require("./auth");
 const entitlements_1 = require("./entitlements");
-/**
- * Get subscription status for the authenticated user (or a target user for admins).
- */
+const razorpay_types_1 = require("./razorpay-types");
 async function getSubscriptionStatus(request) {
     const { uid: callerUid } = await (0, auth_1.requireAuth)(request.auth);
     const targetUid = request.data.targetUid || callerUid;
-    // Non-admin users can only read their own status
     if (targetUid !== callerUid) {
         try {
             await (0, auth_1.requireAdmin)(request.auth);
@@ -82,9 +81,59 @@ async function getSubscriptionStatus(request) {
         planPrice: entitlements_1.PLAN_METADATA[plan]?.price || 0,
         currentPeriodEnd: subscription?.currentPeriodEnd?.toDate?.()?.toISOString(),
         cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
-        stripeCustomerId: data.stripeCustomerId,
-        stripeSubscriptionId: subscription?.stripeSubscriptionId,
-        isActive: status === 'active' || status === 'trialing',
+        paymentCustomerId: data.paymentCustomerId,
+        providerSubscriptionId: subscription?.providerSubscriptionId,
+        isActive: status === 'active',
     };
+}
+async function cancelSubscription(request) {
+    const { uid } = await (0, auth_1.requireAuth)(request.auth);
+    const db = admin.firestore();
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'User profile not found.');
+    }
+    const data = userDoc.data();
+    const subscriptionId = data.subscription?.providerSubscriptionId;
+    if (!subscriptionId) {
+        throw new functions.https.HttpsError('failed-precondition', 'No active subscription to cancel.');
+    }
+    const razorpay = (0, razorpay_types_1.getRazorpayInstance)();
+    try {
+        await razorpay.subscriptions.cancel(subscriptionId, { cancel_at_cycle_end: request.data.cancelAtCycleEnd ? 1 : 0 });
+        functions.logger.info('Subscription cancelled via API', { uid, subscriptionId });
+        // If immediate cancellation, update Firestore now
+        // (webhook will also confirm this)
+        if (!request.data.cancelAtCycleEnd) {
+            const now = admin.firestore.FieldValue.serverTimestamp();
+            await db.collection('users').doc(uid).update({
+                plan: 'free',
+                subscriptionStatus: 'cancelled',
+                subscription: {
+                    plan: 'free',
+                    status: 'cancelled',
+                    providerSubscriptionId: null,
+                    providerPlanId: null,
+                    interval: null,
+                    currentPeriodStart: null,
+                    currentPeriodEnd: null,
+                    cancelAtPeriodEnd: false,
+                },
+                updatedAt: now,
+            });
+        }
+        else {
+            // Just mark as cancel-at-cycle-end
+            await db.collection('users').doc(uid).update({
+                'subscription.cancelAtPeriodEnd': true,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        return { success: true };
+    }
+    catch (err) {
+        functions.logger.error('Failed to cancel subscription', { uid, error: err.message });
+        throw new functions.https.HttpsError('internal', `Failed to cancel subscription: ${err.message}`);
+    }
 }
 //# sourceMappingURL=subscription.js.map

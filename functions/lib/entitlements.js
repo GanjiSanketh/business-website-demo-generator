@@ -10,6 +10,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PLAN_IDS = exports.PLAN_METADATA = exports.PLAN_FEATURES = exports.PLAN_LIMITS = void 0;
+exports.isPlanUpgrade = isPlanUpgrade;
 exports.isUnlimited = isUnlimited;
 exports.canPerform = canPerform;
 exports.getRemaining = getRemaining;
@@ -75,6 +76,13 @@ exports.PLAN_IDS = ['free', 'pro', 'business'];
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
+const PLAN_HIERARCHY = ['free', 'pro', 'business'];
+/**
+ * Check whether a plan change constitutes an upgrade (vs. downgrade or same).
+ */
+function isPlanUpgrade(currentPlan, targetPlan) {
+    return PLAN_HIERARCHY.indexOf(targetPlan) > PLAN_HIERARCHY.indexOf(currentPlan);
+}
 function isUnlimited(value) {
     return value === null;
 }
@@ -216,14 +224,14 @@ async function enforceCustomDomainLimit(db, uid, plan, isAdminUser) {
 }
 /**
  * Check whether the subscription status allows the operation.
- * Only 'active' and 'trialing' statuses allow business operations.
+ * Only 'active' status allows business operations.
  * Free plan users are always allowed — they have no paid subscription to enforce.
  */
 function enforceSubscriptionActive(status, plan) {
     if (plan === 'free') {
         return { allowed: true };
     }
-    if (status === 'active' || status === 'trialing') {
+    if (status === 'active') {
         return { allowed: true };
     }
     return {

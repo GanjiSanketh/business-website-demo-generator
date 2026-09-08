@@ -1,70 +1,59 @@
 /**
- * Stripe Checkout Session creation.
+ * Razorpay Checkout — creates subscription for plan upgrades.
  *
- * Creates a Stripe Checkout session for upgrading to a paid plan.
- * Called from the frontend via Firebase Callable Functions.
- *
- * IMPORTANT: This function does NOT directly interact with Stripe yet.
- * It prepares the architecture. Stripe SDK integration happens in Part 2B.
+ * Flow:
+ * 1. Verify user authentication
+ * 2. Get or create Razorpay customer
+ * 3. Validate upgrade eligibility
+ * 4. Resolve trusted Razorpay plan from server config
+ * 5. Create Razorpay Subscription
+ * 6. Return subscription ID for client-side Razorpay Checkout authorization
  *
  * Security:
  * - Requires authenticated user
- * - Creates/reuses Stripe customer
- * - Returns Checkout Session URL for redirect
+ * - Plan ID resolved server-side (client cannot send arbitrary Razorpay plan)
+ * - Upgrade eligibility checked server-side
+ * - Razorpay secret key NEVER exposed to client
+ * - Client callback does NOT activate subscription; only webhook does
  */
 
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { requireAuth, CallableRequest } from './auth';
-import { PlanId, PLAN_METADATA } from './entitlements';
-import { getStripePriceId } from './stripe-types';
+import { PlanId, PLAN_METADATA, isPlanUpgrade } from './entitlements';
+import { getRazorpayInstance, getRazorpayPlanId } from './razorpay-types';
 
-export interface CreateCheckoutSessionRequest {
+export interface CreateCheckoutRequest {
   planId: PlanId;
-  email: string;
 }
 
-export interface CreateCheckoutSessionResponse {
-  sessionId?: string;
-  url?: string;
+export interface CreateCheckoutResponse {
+  subscriptionId?: string;
+  razorpayKeyId?: string;
+  planId?: string;
   error?: string;
 }
 
 /**
- * Create a Stripe Checkout session for plan upgrade.
+ * Create a Razorpay Subscription for plan upgrade.
  *
- * Flow:
- * 1. Verify user authentication
- * 2. Get or create Stripe customer
- * 3. Create Checkout session with the selected plan's price
- * 4. Return the session URL for frontend redirect
- *
- * When Stripe SDK is added in Part 2B, this function will:
- * - Import and initialize Stripe with the secret key
- * - Use stripe.customers.create() / stripe.customers.retrieve()
- * - Use stripe.checkout.sessions.create()
- * - Store stripeCustomerId on the user profile
+ * Returns subscription details for the client to open Razorpay Checkout.
+ * The actual subscription activation happens ONLY via webhook confirmation.
  */
 export async function createCheckoutSession(
-  request: CallableRequest<CreateCheckoutSessionRequest>
-): Promise<CreateCheckoutSessionResponse> {
-  const { uid, email: authEmail } = await requireAuth(request.auth);
+  request: CallableRequest<CreateCheckoutRequest>
+): Promise<CreateCheckoutResponse> {
+  const { uid, email } = await requireAuth(request.auth);
 
-  const { planId, email } = request.data;
+  const { planId } = request.data;
 
   // Validate plan
   if (!planId || !PLAN_METADATA[planId]) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Invalid plan selected.'
-    );
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid plan selected.');
   }
 
   if (planId === 'free') {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Free plan does not require checkout.'
-    );
+    throw new functions.https.HttpsError('failed-precondition', 'Free plan does not require checkout.');
   }
 
   const db = admin.firestore();
@@ -72,70 +61,81 @@ export async function createCheckoutSession(
   const userDoc = await userRef.get();
 
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError(
-      'not-found',
-      'User profile not found.'
-    );
+    throw new functions.https.HttpsError('not-found', 'User profile not found.');
   }
 
   const userData = userDoc.data()!;
 
-  // Check if user is already on this plan
+  // Check if user is already on this plan with active subscription
   if (userData.plan === planId && userData.subscriptionStatus === 'active') {
-    throw new functions.https.HttpsError(
-      'already-exists',
-      `You are already on the ${PLAN_METADATA[planId].name} plan.`
-    );
+    throw new functions.https.HttpsError('already-exists', `You are already on the ${PLAN_METADATA[planId].name} plan.`);
   }
 
-  // Get or create Stripe customer
-  let stripeCustomerId = userData.stripeCustomerId;
-
-  if (!stripeCustomerId) {
-    // Part 2B: Create Stripe customer
-    // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-    // const customer = await stripe.customers.create({
-    //   email: email || authEmail,
-    //   metadata: { firebaseUID: uid },
-    // });
-    // stripeCustomerId = customer.id;
-    // await userRef.update({ stripeCustomerId });
-
-    // Placeholder: Return error until Stripe SDK is installed
-    throw new functions.https.HttpsError(
-      'unimplemented',
-      'Stripe integration is not yet configured. Coming in Phase 5 Part 2B.'
-    );
-  }
-
-  // Get the price id for the selected plan
-  const priceId = getStripePriceId(planId, 'monthly');
-  if (!priceId) {
+  // Validate upgrade eligibility (server-side)
+  const currentPlan = (userData.plan as PlanId) || 'free';
+  if (!isPlanUpgrade(currentPlan, planId) && currentPlan !== planId) {
     throw new functions.https.HttpsError(
       'failed-precondition',
-      'No pricing configured for this plan.'
+      'Downgrades are not supported through checkout. Please contact support.'
     );
   }
 
-  // Part 2B: Create Checkout session
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-  // const session = await stripe.checkout.sessions.create({
-  //   customer: stripeCustomerId,
-  //   mode: 'subscription',
-  //   payment_method_types: ['card'],
-  //   line_items: [{ price: priceId, quantity: 1 }],
-  //   success_url: `${process.env.APP_URL}/admin/billing?session_id={CHECKOUT_SESSION_ID}`,
-  //   cancel_url: `${process.env.APP_URL}/admin/billing`,
-  //   metadata: { firebaseUID: uid, planId },
-  //   subscription_data: { metadata: { firebaseUID: uid, planId } },
-  // });
-  //
-  // return { sessionId: session.id, url: session.url };
+  // Resolve Razorpay plan ID from trusted server config
+  const razorpayPlanId = getRazorpayPlanId(planId, 'monthly');
+  if (!razorpayPlanId) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Payment plan is not configured. Please contact support.'
+    );
+  }
 
-  // Placeholder until Stripe SDK is installed
-  functions.logger.info('Checkout session requested', { uid, planId, stripeCustomerId });
-  throw new functions.https.HttpsError(
-    'unimplemented',
-    'Stripe checkout is not yet configured. Coming in Phase 5 Part 2B.'
-  );
+  // Get or create Razorpay customer
+  const razorpay = getRazorpayInstance();
+  let razorpayCustomerId = userData.paymentCustomerId;
+
+  if (!razorpayCustomerId) {
+    try {
+      const customer = await razorpay.customers.create({
+        name: userData.displayName || email || 'User',
+        email: email || undefined,
+        notes: { firebaseUID: uid },
+      });
+      razorpayCustomerId = customer.id;
+      await userRef.update({ paymentCustomerId: razorpayCustomerId });
+    } catch (err: any) {
+      functions.logger.error('Failed to create Razorpay customer', { uid, error: err.message });
+      throw new functions.https.HttpsError('internal', 'Failed to create payment customer. Please try again.');
+    }
+  }
+
+  // Create Razorpay Subscription
+  try {
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: razorpayPlanId,
+      customer_id: razorpayCustomerId,
+      total_count: 12, // 12 billing cycles (months) — auto-renews via webhook
+      quantity: 1,
+      customer_notify: 1,
+      notes: {
+        firebaseUID: uid,
+        planId,
+      },
+    });
+
+    functions.logger.info('Razorpay subscription created', {
+      uid,
+      planId,
+      subscriptionId: subscription.id,
+      razorpayPlanId,
+    });
+
+    return {
+      subscriptionId: subscription.id,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      planId,
+    };
+  } catch (err: any) {
+    functions.logger.error('Failed to create Razorpay subscription', { uid, planId, error: err.message });
+    throw new functions.https.HttpsError('internal', 'Failed to create subscription. Please try again.');
+  }
 }

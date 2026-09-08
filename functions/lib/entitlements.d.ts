@@ -9,7 +9,7 @@
  */
 import * as admin from 'firebase-admin';
 export type PlanId = 'free' | 'pro' | 'business';
-export type SubscriptionStatus = 'active' | 'trialing' | 'inactive' | 'cancelled' | 'past_due';
+export type SubscriptionStatus = 'active' | 'inactive' | 'cancelled' | 'past_due';
 export interface PlanLimits {
     maxBusinesses: number | null;
     maxPublishedBusinesses: number | null;
@@ -33,6 +33,10 @@ export declare const PLAN_LIMITS: Record<PlanId, PlanLimits>;
 export declare const PLAN_FEATURES: Record<PlanId, PlanFeatures>;
 export declare const PLAN_METADATA: Record<PlanId, PlanMetadata>;
 export declare const PLAN_IDS: PlanId[];
+/**
+ * Check whether a plan change constitutes an upgrade (vs. downgrade or same).
+ */
+export declare function isPlanUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean;
 export declare function isUnlimited(value: number | null): boolean;
 /**
  * Check whether a user can perform an action given the current count and plan limit.
@@ -75,7 +79,7 @@ export declare function enforcePublishedLimit(db: admin.firestore.Firestore, uid
 export declare function enforceCustomDomainLimit(db: admin.firestore.Firestore, uid: string, plan: PlanId, isAdminUser: boolean): Promise<EnforcementResult>;
 /**
  * Check whether the subscription status allows the operation.
- * Only 'active' and 'trialing' statuses allow business operations.
+ * Only 'active' status allows business operations.
  * Free plan users are always allowed — they have no paid subscription to enforce.
  */
 export declare function enforceSubscriptionActive(status: SubscriptionStatus, plan: PlanId): EnforcementResult;

@@ -5,7 +5,6 @@ import {
   doc,
   getDocs,
   getDoc,
-  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -20,9 +19,6 @@ import { AuthService } from './auth.service';
 import { UserService } from './user.service';
 import { Business, CustomDomainConfig } from '../models/business.model';
 import {
-  normalizeDomain,
-  isValidDomainHostname,
-  generateVerificationToken,
   normalizeHostname,
   isPlatformHost,
 } from '../components/demo/shared/domain-utils';
@@ -212,85 +208,25 @@ export class BusinessService {
   }
 
   async createBusiness(business: Omit<Business, 'id' | 'ownerId'>): Promise<string> {
-    const db = await this.getDb();
-    const now = Timestamp.now();
-    const ownerId = this.getCurrentUserId();
-
-    const dataToSave: DocumentData = {
-      ownerId,
-      businessName: business.businessName || '',
-      category: business.category || '',
-      templateId: business.templateId || '',
-      tagline: business.tagline || '',
-      description: business.description || '',
-      phone: business.phone || '',
-      whatsapp: business.whatsapp || '',
-      address: business.address || '',
-      services: business.services || [],
-      slug: business.slug || '',
-      status: business.status || 'draft',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    if (business.status === 'published') {
-      dataToSave['publishedAt'] = now;
-    }
-
-    if (business.logoUrl) {
-      dataToSave['logoUrl'] = business.logoUrl;
-    }
-    if (business.images && business.images.length > 0) {
-      dataToSave['images'] = business.images;
-    }
-    if (business.themeId) {
-      dataToSave['themeId'] = business.themeId;
-    }
-    if (business.themeOptions && Object.keys(business.themeOptions).length > 0) {
-      dataToSave['themeOptions'] = business.themeOptions;
-    }
-    if (business.testimonials && business.testimonials.length > 0) {
-      dataToSave['testimonials'] = business.testimonials;
-    }
-    if (business.faqs && business.faqs.length > 0) {
-      dataToSave['faqs'] = business.faqs;
-    }
-    if (business.socialLinks && Object.values(business.socialLinks).some((v) => v)) {
-      dataToSave['socialLinks'] = business.socialLinks;
-    }
-    if (business.primaryCta && business.primaryCta.enabled && business.primaryCta.label) {
-      dataToSave['primaryCta'] = business.primaryCta;
-    }
-    if (business.announcement && business.announcement.enabled && business.announcement.text) {
-      dataToSave['announcement'] = business.announcement;
-    }
-    if (business.businessHours) {
-      dataToSave['businessHours'] = business.businessHours;
-    }
-    if (business.seoTitle) {
-      dataToSave['seoTitle'] = business.seoTitle;
-    }
-    if (business.seoDescription) {
-      dataToSave['seoDescription'] = business.seoDescription;
-    }
-    if (business.seoKeywords) {
-      dataToSave['seoKeywords'] = business.seoKeywords;
-    }
-    if (business.socialImageUrl) {
-      dataToSave['socialImageUrl'] = business.socialImageUrl;
-    }
-    if (business.faviconUrl) {
-      dataToSave['faviconUrl'] = business.faviconUrl;
-    }
+    const functions = await this.getFunctionsInstance();
+    const createFn = httpsCallable<
+      Omit<Business, 'id' | 'ownerId'>,
+      { id?: string; error?: string }
+    >(functions, 'createBusinessServerFn');
 
     try {
-      const docRef = await this.withTimeout(
-        addDoc(collection(db, this.collectionName), dataToSave),
-        15000,
-        'createBusiness'
-      );
-      return docRef.id;
+      const result = await createFn(business as any);
+      if (result.data.error) {
+        throw new Error(result.data.error);
+      }
+      return result.data.id!;
     } catch (err: any) {
+      if (err?.code === 'resource-exhausted') {
+        throw new Error(err.message);
+      }
+      if (err?.code === 'failed-precondition') {
+        throw new Error(err.message);
+      }
       if (err?.message?.includes('NOT_FOUND') || err?.message?.includes('Could not reach')) {
         throw new Error('Firestore database is not available. Please create a Firestore database in your Firebase Console (Firestore Database → Create database).');
       }
@@ -322,21 +258,13 @@ export class BusinessService {
         cleanData[key] = value;
       }
     }
-    if (cleanData['status'] === 'published' && cleanData['publishedAt'] === undefined) {
-      try {
-        const existing = await this.withTimeout(
-          getDoc(docRef),
-          15000,
-          'updateBusiness.readForPublish'
-        );
-        if (!existing.exists() || !(existing.data() as DocumentData)?.['publishedAt']) {
-          cleanData['publishedAt'] = Timestamp.now();
-        }
-      } catch (err) {
-        console.warn('[BusinessService] Could not read existing publishedAt, stamping now:', err);
-        cleanData['publishedAt'] = Timestamp.now();
-      }
+
+    // Publishing must go through publishBusiness() — block direct status changes
+    if (cleanData['status'] === 'published') {
+      delete cleanData['status'];
     }
+    // publishedAt is set exclusively by the server-enforced publish operation
+    delete cleanData['publishedAt'];
 
     cleanData['updatedAt'] = Timestamp.now();
 
@@ -349,6 +277,53 @@ export class BusinessService {
       }
       throw err;
     }
+  }
+
+  async publishBusiness(businessId: string): Promise<void> {
+    const functions = await this.getFunctionsInstance();
+    const publishFn = httpsCallable<
+      { businessId: string },
+      { success?: boolean; error?: string }
+    >(functions, 'publishBusinessServerFn');
+
+    try {
+      const result = await publishFn({ businessId });
+      if (result.data.error) {
+        throw new Error(result.data.error);
+      }
+    } catch (err: any) {
+      if (err?.code === 'resource-exhausted') {
+        throw new Error(err.message);
+      }
+      if (err?.code === 'failed-precondition') {
+        throw new Error(err.message);
+      }
+      throw err;
+    }
+  }
+
+  async unpublishBusiness(businessId: string): Promise<void> {
+    const db = await this.getDb();
+    const docRef = doc(db, this.collectionName, businessId);
+
+    const snapshot = await this.withTimeout(getDoc(docRef), 15000, 'unpublishBusiness.read');
+    if (!snapshot.exists()) {
+      throw new Error('Business not found');
+    }
+
+    const businessData = snapshot.data() as Business;
+    if (!this.isAdmin() && businessData.ownerId !== this.getCurrentUserId()) {
+      throw new Error('You do not have permission to unpublish this business');
+    }
+
+    await this.withTimeout(
+      updateDoc(docRef, {
+        status: 'draft',
+        updatedAt: Timestamp.now(),
+      }),
+      15000,
+      'unpublishBusiness'
+    );
   }
 
   async deleteBusiness(id: string): Promise<void> {
@@ -426,53 +401,33 @@ export class BusinessService {
     return slug;
   }
 
-  async checkDomainConflict(domain: string, excludeBusinessId?: string): Promise<string | null> {
-    const normalized = normalizeDomain(domain);
-    if (!normalized || !isValidDomainHostname(normalized)) {
-      throw new Error('Invalid domain format');
-    }
-
-    const db = await this.getDb();
-    const q = query(
-      collection(db, this.collectionName),
-      where('customDomain.domain', '==', normalized)
-    );
-    const snapshot = await this.withTimeout(getDocs(q), 15000, 'checkDomainConflict');
-
-    if (snapshot.empty) return null;
-
-    const existingBusiness = snapshot.docs[0];
-    if (excludeBusinessId && existingBusiness.id === excludeBusinessId) return null;
-
-    return existingBusiness.id;
-  }
-
   async connectCustomDomain(businessId: string, domain: string): Promise<CustomDomainConfig> {
-    const normalized = normalizeDomain(domain);
-    if (!normalized || !isValidDomainHostname(normalized)) {
-      throw new Error('Invalid domain format. Please enter a valid hostname (e.g., example.com).');
+    const functions = await this.getFunctionsInstance();
+    const connectFn = httpsCallable<
+      { businessId: string; domain: string },
+      { domain?: string; status?: string; verificationToken?: string; error?: string }
+    >(functions, 'connectCustomDomainServerFn');
+
+    try {
+      const result = await connectFn({ businessId, domain });
+      if (result.data.error) {
+        throw new Error(result.data.error);
+      }
+      return {
+        domain: result.data.domain!,
+        status: result.data.status as CustomDomainConfig['status'],
+        verificationToken: result.data.verificationToken,
+        verifiedAt: undefined,
+      };
+    } catch (err: any) {
+      if (err?.code === 'resource-exhausted') {
+        throw new Error(err.message);
+      }
+      if (err?.code === 'already-exists') {
+        throw new Error(err.message);
+      }
+      throw err;
     }
-
-    const conflictId = await this.checkDomainConflict(normalized, businessId);
-    if (conflictId) {
-      throw new Error('This domain is already connected to another business.');
-    }
-
-    const verificationToken = generateVerificationToken();
-    const now = Timestamp.now();
-
-    const customDomainConfig: CustomDomainConfig = {
-      domain: normalized,
-      status: 'pending',
-      verificationToken,
-      verifiedAt: undefined,
-    };
-
-    await this.updateBusiness(businessId, {
-      customDomain: customDomainConfig,
-    });
-
-    return customDomainConfig;
   }
 
   async verifyCustomDomain(businessId: string): Promise<CustomDomainConfig> {

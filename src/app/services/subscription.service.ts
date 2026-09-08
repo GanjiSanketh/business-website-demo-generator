@@ -33,10 +33,43 @@ import {
 } from '../models/user.model';
 import { getFirebaseConfig } from '../environment/environment';
 
+/**
+ * Declare the global Razorpay constructor loaded from the Razorpay Checkout script.
+ * The script is loaded dynamically when checkout is initiated.
+ */
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  subscription_id: string;
+  name: string;
+  description: string;
+  handler: (response: RazorpayPaymentResponse) => void;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  modal?: { ondismiss?: () => void };
+}
+
+interface RazorpayPaymentResponse {
+  razorpay_subscription_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: any) => void) => void;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SubscriptionService {
   private db: ReturnType<typeof getFirestore> | undefined;
   private dbInitialized = false;
+  private razorpayScriptLoaded = false;
 
   private authService = inject(AuthService);
   private userService = inject(UserService);
@@ -234,7 +267,6 @@ export class SubscriptionService {
 
   /**
    * Load actual business counts from Firestore.
-   * Called once on dashboard init to replace the stub zeros with real data.
    */
   async loadCounts(): Promise<void> {
     const profile = this.userService.getProfile();
@@ -245,7 +277,6 @@ export class SubscriptionService {
       const db = await this.getDb();
       const businessesRef = collection(db, 'businesses');
 
-      // Total businesses for this user
       const totalQuery = query(
         businessesRef,
         where('ownerId', '==', profile.uid),
@@ -253,7 +284,6 @@ export class SubscriptionService {
       const totalSnapshot = await getDocs(totalQuery);
       this._businessCount.set(totalSnapshot.size);
 
-      // Published businesses for this user
       let publishedCount = 0;
       let customDomainCount = 0;
       for (const docSnap of totalSnapshot.docs) {
@@ -315,15 +345,52 @@ export class SubscriptionService {
     return '/admin/billing';
   }
 
+  // ---------------------------------------------------------------------------
+  // Razorpay Checkout
+  // ---------------------------------------------------------------------------
+
   /**
-   * Initiate a Stripe Checkout session for upgrading to the specified plan.
-   * Calls the createCheckoutSession Cloud Function which returns a
-   * Stripe Checkout Session URL. The user is redirected to Stripe.
-   *
-   * This method does NOT directly interact with Stripe — all Stripe
-   * operations happen server-side in Cloud Functions.
+   * Load the Razorpay Checkout script from checkout.razorpay.com.
+   * Only loads once; subsequent calls are no-ops.
    */
-  async startCheckout(planId: PlanId): Promise<string> {
+  private loadRazorpayScript(): Promise<void> {
+    if (this.razorpayScriptLoaded && typeof window !== 'undefined' && window.Razorpay) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined') {
+        reject(new Error('Razorpay Checkout is only available in the browser.'));
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => {
+        this.razorpayScriptLoaded = true;
+        resolve();
+      };
+      script.onerror = () => reject(new Error('Failed to load Razorpay Checkout script.'));
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Initiate Razorpay Checkout for upgrading to the specified plan.
+   *
+   * Flow:
+   * 1. Call createCheckoutSession Cloud Function → get Razorpay subscription ID
+   * 2. Load Razorpay Checkout script
+   * 3. Open Razorpay Checkout modal with subscription_id
+   * 4. On payment success, the webhook will confirm activation
+   * 5. Return a promise that resolves when the modal closes
+   *
+   * NOTE: A successful payment callback does NOT immediately activate the
+   * subscription. Activation happens via the server-side webhook.
+   * The client shows a "processing" state until the user refreshes or
+   * the profile updates in real-time.
+   */
+  async startCheckout(planId: PlanId): Promise<void> {
     const profile = this.userService.getProfile();
     if (!profile) {
       throw new Error('User profile not loaded. Please try again.');
@@ -338,58 +405,76 @@ export class SubscriptionService {
       throw new Error('Firebase is not initialized.');
     }
 
+    // Step 1: Create Razorpay subscription via Cloud Function
     const functions = getFunctions(apps[0]);
     const createCheckoutSession = httpsCallable<
-      { planId: PlanId; email: string },
-      { sessionId?: string; url?: string; error?: string }
-    >(functions, 'createCheckoutSession');
+      { planId: PlanId },
+      { subscriptionId?: string; razorpayKeyId?: string; planId?: string; error?: string }
+    >(functions, 'createCheckoutSessionFn');
 
-    const result = await createCheckoutSession({
-      planId,
-      email: profile.email,
-    });
+    const result = await createCheckoutSession({ planId });
 
     if (result.data.error) {
       throw new Error(result.data.error);
     }
 
-    if (!result.data.url) {
-      throw new Error('No checkout URL returned. Please try again.');
+    if (!result.data.subscriptionId || !result.data.razorpayKeyId) {
+      throw new Error('No subscription returned from server. Please try again.');
     }
 
-    return result.data.url;
+    // Step 2: Load Razorpay Checkout script
+    await this.loadRazorpayScript();
+
+    // Step 3: Open Razorpay Checkout with subscription_id
+    return new Promise<void>((resolve, reject) => {
+      const options: RazorpayOptions = {
+        key: result.data.razorpayKeyId!,
+        subscription_id: result.data.subscriptionId!,
+        name: PLAN_METADATA[planId].name,
+        description: `Upgrade to ${PLAN_METADATA[planId].name} Plan`,
+        handler: (_response: RazorpayPaymentResponse) => {
+          // Payment successful — webhook will confirm activation
+          resolve();
+        },
+        prefill: {
+          name: profile.displayName || '',
+          email: profile.email || '',
+        },
+        theme: {
+          color: '#0d6efd',
+        },
+        modal: {
+          ondismiss: () => {
+            reject(new Error('Payment cancelled.'));
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response: { error: { description: string } }) => {
+        reject(new Error(response.error?.description || 'Payment failed.'));
+      });
+      razorpay.open();
+    });
   }
 
   /**
-   * Open the Stripe Customer Portal for managing the current subscription.
-   * Used for cancel, update payment method, view invoices, etc.
+   * Cancel the user's subscription.
    */
-  async openCustomerPortal(): Promise<string> {
+  async cancelSubscription(): Promise<void> {
     const apps = getApps();
-    if (apps.length === 0) {
-      throw new Error('Firebase is not initialized.');
-    }
+    if (apps.length === 0) throw new Error('Firebase is not initialized.');
 
     const functions = getFunctions(apps[0]);
-    const createPortalSession = httpsCallable<
-      { returnUrl: string },
-      { url?: string; error?: string }
-    >(functions, 'createPortalSession');
+    const cancelFn = httpsCallable<
+      { cancelAtCycleEnd?: boolean },
+      { success: boolean; error?: string }
+    >(functions, 'cancelSubscription');
 
-    const returnUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/admin/billing`
-      : '/admin/billing';
-
-    const result = await createPortalSession({ returnUrl });
+    const result = await cancelFn({ cancelAtCycleEnd: true });
 
     if (result.data.error) {
       throw new Error(result.data.error);
     }
-
-    if (!result.data.url) {
-      throw new Error('No portal URL returned. Please try again.');
-    }
-
-    return result.data.url;
   }
 }

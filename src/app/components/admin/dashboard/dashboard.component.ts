@@ -195,9 +195,9 @@ export class DashboardComponent implements OnInit {
   }
 
   async toggleStatus(business: Business): Promise<void> {
-    const newStatus = business.status === 'published' ? 'draft' : 'published';
+    const isPublishing = business.status !== 'published';
 
-    if (newStatus === 'published') {
+    if (isPublishing) {
       const remaining = this.remainingPublished();
       if (remaining !== null && remaining <= 0) {
         this.showToast(`Your ${this.currentPlanMetadata().name} plan allows ${this.subscriptionService.formatLimit(this.currentPlanLimits().maxPublishedBusinesses)} published business${this.currentPlanLimits().maxPublishedBusinesses === 1 ? '' : 'es'}. Upgrade to publish more.`);
@@ -205,15 +205,19 @@ export class DashboardComponent implements OnInit {
       }
     }
 
-    await this.businessService.updateBusiness(business.id!, {
-      status: newStatus,
-    });
-    this.showToast(
-      newStatus === 'published'
-        ? `"${business.businessName}" published.`
-        : `"${business.businessName}" unpublished.`
-    );
-    await this.loadBusinesses();
+    try {
+      if (isPublishing) {
+        await this.businessService.publishBusiness(business.id!);
+        this.showToast(`"${business.businessName}" published.`);
+      } else {
+        await this.businessService.unpublishBusiness(business.id!);
+        this.showToast(`"${business.businessName}" unpublished.`);
+      }
+      await this.loadBusinesses();
+    } catch (err) {
+      console.error('Error toggling business status:', err);
+      this.showToast('Failed to update business status.');
+    }
   }
 
   async duplicateBusiness(business: Business): Promise<void> {

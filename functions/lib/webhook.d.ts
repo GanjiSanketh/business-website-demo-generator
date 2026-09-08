@@ -1,37 +1,35 @@
 /**
- * Stripe Webhook handler.
+ * Razorpay Webhook handler.
  *
- * Processes Stripe webhook events to update subscription state in Firestore.
+ * Processes Razorpay webhook events to update subscription state in Firestore.
  * This is the authoritative source for subscription changes — the frontend
  * never directly modifies plan/subscription fields.
  *
- * IMPORTANT: This function does NOT directly interact with Stripe yet.
- * It prepares the architecture. Stripe SDK integration happens in Part 2B.
- *
  * Security:
- * - Verifies Stripe webhook signature (Part 2B)
+ * - Verifies Razorpay webhook signature using HMAC-SHA256
  * - Uses Admin SDK to update user profiles
- * - Processes events idempotently
+ * - Processes events idempotently via Firestore transaction
  *
- * Supported events (Part 2B):
- * - checkout.session.completed
- * - customer.subscription.updated
- * - customer.subscription.deleted
- * - invoice.payment_succeeded
- * - invoice.payment_failed
+ * Supported events (Razorpay Subscriptions API):
+ * - subscription.authenticated — first payment authorized, subscription active
+ * - subscription.activated — moved to active state
+ * - subscription.charged — recurring payment succeeded
+ * - subscription.pending — charge attempt failed, will retry
+ * - subscription.halted — all retries exhausted
+ * - subscription.cancelled — user cancelled
+ * - subscription.completed — all billing cycles ended (total_count reached)
+ * - payment.failed — payment failed event
  */
 import * as functions from 'firebase-functions/v2';
 /**
- * Handle Stripe webhook events.
+ * Handle Razorpay webhook events.
  *
- * Architecture notes for Part 2B:
- * - This will be an onRequest function (not onCall) to receive Stripe POSTs
- * - Must verify stripe-signature header against webhook secret
- * - Must handle idempotency (check if event already processed)
- * - Must update Firestore user profile atomically
+ * This is an onRequest function (NOT onCall) because Razorpay sends
+ * POST requests directly to this endpoint.
  */
-export declare function handleStripeWebhook(request: functions.https.Request, response: {
+export declare function handleRazorpayWebhook(request: functions.https.Request, response: {
     status: (code: number) => {
+        send: (body: string) => void;
         json: (body: any) => void;
     };
 }): Promise<void>;

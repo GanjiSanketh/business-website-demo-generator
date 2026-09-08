@@ -1,42 +1,37 @@
 /**
- * Stripe Checkout Session creation.
- *
- * Creates a Stripe Checkout session for upgrading to a paid plan.
- * Called from the frontend via Firebase Callable Functions.
- *
- * IMPORTANT: This function does NOT directly interact with Stripe yet.
- * It prepares the architecture. Stripe SDK integration happens in Part 2B.
- *
- * Security:
- * - Requires authenticated user
- * - Creates/reuses Stripe customer
- * - Returns Checkout Session URL for redirect
- */
-import { CallableRequest } from './auth';
-import { PlanId } from './entitlements';
-export interface CreateCheckoutSessionRequest {
-    planId: PlanId;
-    email: string;
-}
-export interface CreateCheckoutSessionResponse {
-    sessionId?: string;
-    url?: string;
-    error?: string;
-}
-/**
- * Create a Stripe Checkout session for plan upgrade.
+ * Razorpay Checkout — creates subscription for plan upgrades.
  *
  * Flow:
  * 1. Verify user authentication
- * 2. Get or create Stripe customer
- * 3. Create Checkout session with the selected plan's price
- * 4. Return the session URL for frontend redirect
+ * 2. Get or create Razorpay customer
+ * 3. Validate upgrade eligibility
+ * 4. Resolve trusted Razorpay plan from server config
+ * 5. Create Razorpay Subscription
+ * 6. Return subscription ID for client-side Razorpay Checkout authorization
  *
- * When Stripe SDK is added in Part 2B, this function will:
- * - Import and initialize Stripe with the secret key
- * - Use stripe.customers.create() / stripe.customers.retrieve()
- * - Use stripe.checkout.sessions.create()
- * - Store stripeCustomerId on the user profile
+ * Security:
+ * - Requires authenticated user
+ * - Plan ID resolved server-side (client cannot send arbitrary Razorpay plan)
+ * - Upgrade eligibility checked server-side
+ * - Razorpay secret key NEVER exposed to client
+ * - Client callback does NOT activate subscription; only webhook does
  */
-export declare function createCheckoutSession(request: CallableRequest<CreateCheckoutSessionRequest>): Promise<CreateCheckoutSessionResponse>;
+import { CallableRequest } from './auth';
+import { PlanId } from './entitlements';
+export interface CreateCheckoutRequest {
+    planId: PlanId;
+}
+export interface CreateCheckoutResponse {
+    subscriptionId?: string;
+    razorpayKeyId?: string;
+    planId?: string;
+    error?: string;
+}
+/**
+ * Create a Razorpay Subscription for plan upgrade.
+ *
+ * Returns subscription details for the client to open Razorpay Checkout.
+ * The actual subscription activation happens ONLY via webhook confirmation.
+ */
+export declare function createCheckoutSession(request: CallableRequest<CreateCheckoutRequest>): Promise<CreateCheckoutResponse>;
 //# sourceMappingURL=checkout.d.ts.map

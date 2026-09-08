@@ -34,15 +34,15 @@ service cloud.firestore {
       allow create: if isOwner(userId);
 
       // Users can update safe fields only (displayName, photoURL)
-      // Cannot update: role, plan, subscription, subscriptionStatus, createdAt, stripeCustomerId
-      // stripeCustomerId is managed exclusively by Cloud Functions with Admin SDK
+      // Cannot update: role, plan, subscription, subscriptionStatus, createdAt, paymentCustomerId
+      // paymentCustomerId is managed exclusively by Cloud Functions with Admin SDK
       allow update: if isOwner(userId) &&
         !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('plan' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('subscription' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('subscriptionStatus' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('createdAt' in request.resource.data.diff(resource.data).affectedKeys()) &&
-        !('stripeCustomerId' in request.resource.data.diff(resource.data).affectedKeys());
+        !('paymentCustomerId' in request.resource.data.diff(resource.data).affectedKeys());
 
       // Only admins can delete users
       allow delete: if isAdmin();
@@ -57,15 +57,14 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------
-    // businesses — the only collection used by the application.
+    // businesses — server-authoritative for create and publish.
     //
-    //   - Public (anonymous) read: published businesses only
-    //   - Owner read: own businesses (draft + published)
-    //   - Admin read: all businesses
-    //   - Create: authenticated users, ownerId must match request.auth.uid
-    //   - Update: owner or admin
+    //   - Create: BLOCKED for clients (must use createBusinessServerFn)
+    //   - Publish: BLOCKED for clients (must use publishBusinessServerFn)
+    //   - Unpublish: allowed for owner/admin (status → draft)
+    //   - Content updates: allowed for owner/admin
+    //   - Read: published businesses public; owner sees all; admin sees all
     //   - Delete: owner or admin
-    //   - Legacy businesses (no ownerId): accessible only to admin
     // ------------------------------------------------------------------
     match /businesses/{businessId} {
       // Public read: published only
@@ -74,16 +73,27 @@ service cloud.firestore {
       // Owner/Admin read: all (including drafts)
       allow read: if isOwner(resource.data.ownerId) || isAdmin();
 
-      // Create: authenticated user, ownerId must match
-      allow create: if isSignedIn() &&
-        request.resource.data.ownerId == request.auth.uid;
+      // Create: BLOCKED — must use createBusinessServerFn (Cloud Function)
+      // Cloud Functions use Admin SDK and bypass these rules.
+      allow create: if false;
 
-      // Update: owner or admin, ownerId cannot be changed
+      // Update: owner or admin, cannot publish directly, cannot touch publishedAt
       allow update: if (isOwner(resource.data.ownerId) || isAdmin()) &&
-        request.resource.data.ownerId == resource.data.ownerId;
+        request.resource.data.ownerId == resource.data.ownerId &&
+        // Cannot set status to 'published' — must use publishBusinessServerFn
+        request.resource.data.status != 'published' &&
+        // Cannot modify publishedAt — managed by server publish operation
+        !('publishedAt' in request.resource.data.diff(resource.data).affectedKeys());
 
       // Delete: owner or admin
       allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // ------------------------------------------------------------------
+    // Webhook events — server-only, no client access
+    // ------------------------------------------------------------------
+    match /webhookEvents/{eventId} {
+      allow read, write: if false;
     }
 
     // Everything else is denied by default.

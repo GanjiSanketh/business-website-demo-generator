@@ -1,19 +1,19 @@
 /**
- * Subscription status retrieval.
+ * Subscription management Cloud Functions.
  *
- * Provides a Cloud Function that returns the current subscription status
- * for the authenticated user. Used by the frontend to get authoritative
- * subscription state.
+ * Provides:
+ * - getSubscriptionStatus: read current subscription state
+ * - cancelSubscription: cancel a subscription via Razorpay
  *
  * Security:
  * - Requires authenticated user
- * - Users can only read their own subscription status
- * - Admin users can read any user's subscription status
+ * - Users can only manage their own subscription
+ * - Admins can manage any subscription
+ * - All mutations go through Razorpay API (authoritative)
  */
 import { CallableRequest } from './auth';
 import { PlanId, SubscriptionStatus } from './entitlements';
 export interface GetSubscriptionStatusRequest {
-    /** Target user uid. If omitted, returns the caller's own status. */
     targetUid?: string;
 }
 export interface SubscriptionStatusResponse {
@@ -24,12 +24,17 @@ export interface SubscriptionStatusResponse {
     planPrice: number;
     currentPeriodEnd?: string;
     cancelAtPeriodEnd: boolean;
-    stripeCustomerId?: string;
-    stripeSubscriptionId?: string;
+    paymentCustomerId?: string;
+    providerSubscriptionId?: string;
     isActive: boolean;
 }
-/**
- * Get subscription status for the authenticated user (or a target user for admins).
- */
 export declare function getSubscriptionStatus(request: CallableRequest<GetSubscriptionStatusRequest>): Promise<SubscriptionStatusResponse>;
+export interface CancelSubscriptionRequest {
+    cancelAtCycleEnd?: boolean;
+}
+export interface CancelSubscriptionResponse {
+    success: boolean;
+    error?: string;
+}
+export declare function cancelSubscription(request: CallableRequest<CancelSubscriptionRequest>): Promise<CancelSubscriptionResponse>;
 //# sourceMappingURL=subscription.d.ts.map

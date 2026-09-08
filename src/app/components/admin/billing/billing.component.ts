@@ -51,12 +51,13 @@ export class BillingComponent implements OnInit {
 
   isSubscriptionActive = computed(() => {
     const status = this.profile()?.subscriptionStatus;
-    return status === 'active' || status === 'trialing';
+    return status === 'active';
   });
 
   checkoutLoading = signal(false);
   checkoutError = signal('');
-  portalLoading = signal(false);
+  checkoutSuccess = signal('');
+  manageLoading = signal(false);
 
   readonly featureEntries: FeatureEntry[] = [
     { key: 'premiumTemplates', label: 'Premium Templates', enabled: false },
@@ -87,7 +88,6 @@ export class BillingComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Load actual counts if not already loaded
     if (this.businessCount() === 0 && this.publishedCount() === 0) {
       this.subscriptionService.loadCounts();
     }
@@ -139,15 +139,24 @@ export class BillingComponent implements OnInit {
 
     this.checkoutLoading.set(true);
     this.checkoutError.set('');
+    this.checkoutSuccess.set('');
 
     try {
-      const url = await this.subscriptionService.startCheckout(planId);
-      window.location.href = url;
+      await this.subscriptionService.startCheckout(planId);
+      // Payment successful — webhook will confirm activation
+      this.checkoutSuccess.set(
+        'Payment successful! Your subscription is being activated. This may take a moment.'
+      );
+      // Reload counts after a brief delay to allow webhook processing
+      setTimeout(() => {
+        this.subscriptionService.loadCounts();
+      }, 3000);
     } catch (err: any) {
       const message = err?.message || 'Failed to start checkout. Please try again.';
-      // Show user-friendly message for unimplemented Stripe
-      if (message.includes('unimplemented') || message.includes('not yet configured')) {
-        this.checkoutError.set('Stripe payment integration will be available in Phase 5 Part 2B. For now, you are on the Free plan with unlimited admin access.');
+      if (message.includes('cancelled') || message.includes('dismissed')) {
+        // User cancelled — no error needed
+      } else if (message.includes('not configured')) {
+        this.checkoutError.set('Payment is not yet configured. Please contact support.');
       } else {
         this.checkoutError.set(message);
       }
@@ -156,25 +165,24 @@ export class BillingComponent implements OnInit {
     }
   }
 
-  async openPortal(): Promise<void> {
-    this.portalLoading.set(true);
+  async onCancelSubscription(): Promise<void> {
+    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of the billing cycle.')) {
+      return;
+    }
+
+    this.manageLoading.set(true);
     try {
-      const url = await this.subscriptionService.openCustomerPortal();
-      window.location.href = url;
+      await this.subscriptionService.cancelSubscription();
+      this.checkoutSuccess.set('Subscription cancelled. You will retain access until the end of the billing cycle.');
     } catch (err: any) {
-      const message = err?.message || 'Failed to open billing portal.';
-      if (message.includes('unimplemented') || message.includes('not yet configured')) {
-        alert('Stripe billing portal will be available in Phase 5 Part 2B.');
-      } else {
-        alert(message);
-      }
+      this.checkoutError.set(err?.message || 'Failed to cancel subscription.');
     } finally {
-      this.portalLoading.set(false);
+      this.manageLoading.set(false);
     }
   }
 
   onDowngrade(planId: PlanId): void {
     if (this.isCurrentPlan(planId)) return;
-    alert('Downgrade logic will be available in Phase 5 Part 2B.');
+    alert('Downgrades are not supported through the billing page. Please contact support.');
   }
 }

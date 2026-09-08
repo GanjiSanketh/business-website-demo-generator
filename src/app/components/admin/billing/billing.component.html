@@ -75,15 +75,15 @@
         </ul>
       </div>
 
-      @if (!isAdmin() && profile()?.stripeCustomerId) {
+      @if (!isAdmin() && currentPlan() !== 'free') {
         <div class="plan-actions-row">
-          <button class="btn-secondary" (click)="openPortal()" [disabled]="portalLoading()">
-            @if (portalLoading()) {
+          <button class="btn-secondary" (click)="onCancelSubscription()" [disabled]="manageLoading()">
+            @if (manageLoading()) {
               <span class="btn-spinner"></span>
             } @else {
-              <i class="bi bi-gear"></i>
+              <i class="bi bi-x-circle"></i>
             }
-            Manage Subscription
+            Cancel Subscription
           </button>
         </div>
       }
@@ -94,6 +94,13 @@
     <div class="checkout-error">
       <i class="bi bi-exclamation-triangle"></i>
       <span>{{ checkoutError() }}</span>
+    </div>
+  }
+
+  @if (checkoutSuccess()) {
+    <div class="checkout-success">
+      <i class="bi bi-check-circle"></i>
+      <span>{{ checkoutSuccess() }}</span>
     </div>
   }
 
@@ -173,17 +180,6 @@
           </div>
         </div>
       }
-    </div>
-  </section>
-
-  <!-- Payment Integration Notice -->
-  <section class="payment-notice">
-    <div class="notice-card">
-      <i class="bi bi-info-circle"></i>
-      <div>
-        <h3>Payment Integration</h3>
-        <p>Stripe checkout integration is being prepared in <strong>Phase 5 Part 2A</strong>. Full payment processing will be available in <strong>Phase 5 Part 2B</strong>.</p>
-      </div>
     </div>
   </section>
 </div>
