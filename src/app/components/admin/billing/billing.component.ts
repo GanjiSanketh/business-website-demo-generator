@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SubscriptionService } from '../../../services/subscription.service';
 import { UserService } from '../../../services/user.service';
-import { PlanId, PlanDefinition, PLAN_LIMITS } from '../../../models/user.model';
+import { PlanId, PlanDefinition, PLAN_LIMITS, isUnlimited } from '../../../models/user.model';
 
 interface FeatureEntry {
   key: keyof ReturnType<SubscriptionService['currentPlanFeatures']>;
@@ -41,6 +41,7 @@ export class BillingComponent implements OnInit {
   businessCount = computed(() => this.subscriptionService.getBusinessCount());
   publishedCount = computed(() => this.subscriptionService.getPublishedBusinessCount());
   customDomainCount = computed(() => this.subscriptionService.getCustomDomainCount());
+  countsLoading = computed(() => this.subscriptionService.countsLoading());
 
   /** Subscription status display. */
   subscriptionStatus = computed(() => {
@@ -52,6 +53,87 @@ export class BillingComponent implements OnInit {
   isSubscriptionActive = computed(() => {
     const status = this.profile()?.subscriptionStatus;
     return status === 'active';
+  });
+
+  isSubscriptionPastDue = computed(() => {
+    return this.profile()?.subscriptionStatus === 'past_due';
+  });
+
+  isSubscriptionCancelled = computed(() => {
+    return this.profile()?.subscriptionStatus === 'cancelled';
+  });
+
+  isSubscriptionInactive = computed(() => {
+    return this.profile()?.subscriptionStatus === 'inactive';
+  });
+
+  cancelAtPeriodEnd = computed(() => {
+    return this.profile()?.subscription?.cancelAtPeriodEnd === true;
+  });
+
+  renewalDate = computed(() => {
+    const end = this.profile()?.subscription?.currentPeriodEnd;
+    if (!end) return null;
+    try {
+      const date = end instanceof Date ? end : end.toDate?.() || new Date(end as any);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return null;
+    }
+  });
+
+  subscriptionInterval = computed(() => {
+    return this.profile()?.subscription?.interval || null;
+  });
+
+  /** Progress percentages for usage display (0-100, or null for unlimited). */
+  businessProgress = computed(() => {
+    const limit = this.currentPlanLimits().maxBusinesses;
+    if (isUnlimited(limit) || limit === null) return null;
+    if (limit === 0) return 0;
+    return Math.min(100, Math.round((this.businessCount() / limit) * 100));
+  });
+
+  publishedProgress = computed(() => {
+    const limit = this.currentPlanLimits().maxPublishedBusinesses;
+    if (isUnlimited(limit) || limit === null) return null;
+    if (limit === 0) return 0;
+    return Math.min(100, Math.round((this.publishedCount() / limit) * 100));
+  });
+
+  domainProgress = computed(() => {
+    const limit = this.currentPlanLimits().customDomains;
+    if (isUnlimited(limit) || limit === null) return null;
+    if (limit === 0) return 0;
+    return Math.min(100, Math.round((this.customDomainCount() / limit) * 100));
+  });
+
+  businessLimitReached = computed(() => {
+    if (this.isAdmin()) return false;
+    const limit = this.currentPlanLimits().maxBusinesses;
+    if (isUnlimited(limit) || limit === null) return false;
+    return this.businessCount() >= limit;
+  });
+
+  publishedLimitReached = computed(() => {
+    if (this.isAdmin()) return false;
+    const limit = this.currentPlanLimits().maxPublishedBusinesses;
+    if (isUnlimited(limit) || limit === null) return false;
+    return this.publishedCount() >= limit;
+  });
+
+  domainLimitReached = computed(() => {
+    if (this.isAdmin()) return false;
+    const limit = this.currentPlanLimits().customDomains;
+    if (isUnlimited(limit) || limit === null) return false;
+    return this.customDomainCount() >= limit;
+  });
+
+  upgradeTarget = computed(() => {
+    const hierarchy: PlanId[] = ['free', 'pro', 'business'];
+    const idx = hierarchy.indexOf(this.currentPlan());
+    if (idx < 0 || idx >= hierarchy.length - 1) return null;
+    return hierarchy[idx + 1];
   });
 
   checkoutLoading = signal(false);
@@ -143,11 +225,9 @@ export class BillingComponent implements OnInit {
 
     try {
       await this.subscriptionService.startCheckout(planId);
-      // Payment successful — webhook will confirm activation
       this.checkoutSuccess.set(
         'Payment successful! Your subscription is being activated. This may take a moment.'
       );
-      // Reload counts after a brief delay to allow webhook processing
       setTimeout(() => {
         this.subscriptionService.loadCounts();
       }, 3000);
@@ -184,5 +264,12 @@ export class BillingComponent implements OnInit {
   onDowngrade(planId: PlanId): void {
     if (this.isCurrentPlan(planId)) return;
     alert('Downgrades are not supported through the billing page. Please contact support.');
+  }
+
+  getProgressClass(progress: number | null): string {
+    if (progress === null) return '';
+    if (progress >= 100) return 'progress-full';
+    if (progress >= 80) return 'progress-warning';
+    return '';
   }
 }

@@ -13,6 +13,47 @@
     </div>
   }
 
+  <!-- Subscription Status Banner -->
+  @if (isSubscriptionPastDue()) {
+    <div class="status-banner status-banner--warning">
+      <i class="bi bi-exclamation-triangle"></i>
+      <div class="status-banner-content">
+        <strong>Payment Required</strong>
+        <span>Your subscription payment could not be completed. Please update your payment method to continue using premium features.</span>
+      </div>
+    </div>
+  } @else if (cancelAtPeriodEnd()) {
+    <div class="status-banner status-banner--info">
+      <i class="bi bi-calendar-x"></i>
+      <div class="status-banner-content">
+        <strong>Cancellation Scheduled</strong>
+        <span>Your {{ currentPlanMetadata().name }} plan remains active until {{ renewalDate() || 'the end of the billing period' }}.</span>
+      </div>
+    </div>
+  } @else if (isSubscriptionCancelled()) {
+    <div class="status-banner status-banner--muted">
+      <i class="bi bi-info-circle"></i>
+      <div class="status-banner-content">
+        <strong>Free Plan</strong>
+        <span>You are currently on the Free plan. Upgrade to access premium features.</span>
+      </div>
+    </div>
+  }
+
+  @if (checkoutError()) {
+    <div class="checkout-error">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span>{{ checkoutError() }}</span>
+    </div>
+  }
+
+  @if (checkoutSuccess()) {
+    <div class="checkout-success">
+      <i class="bi bi-check-circle"></i>
+      <span>{{ checkoutSuccess() }}</span>
+    </div>
+  }
+
   <!-- Current Plan -->
   <section class="current-plan-section">
     <h2>Current Plan</h2>
@@ -22,45 +63,109 @@
           <i class="bi" [ngClass]="getPlanIcon(currentPlan())"></i>
         </div>
         <div class="plan-info">
-          <h3>{{ currentPlanMetadata().name }}</h3>
+          <h3>{{ currentPlanMetadata().name }} Plan</h3>
           <p class="plan-price">{{ formatPrice(currentPlanMetadata().price) }}</p>
           <p class="plan-description">{{ currentPlanMetadata().description }}</p>
           @if (!isAdmin()) {
             <div class="subscription-status">
-              <span class="status-dot" [class.active]="isSubscriptionActive()" [class.inactive]="!isSubscriptionActive()"></span>
+              <span class="status-dot" [class.active]="isSubscriptionActive()" [class.warning]="isSubscriptionPastDue()" [class.inactive]="isSubscriptionCancelled() || isSubscriptionInactive()"></span>
               <span class="status-text">{{ subscriptionStatus() }}</span>
+              @if (subscriptionInterval()) {
+                <span class="interval-badge">{{ subscriptionInterval() === 'yearly' ? 'Billed yearly' : 'Billed monthly' }}</span>
+              }
             </div>
           }
         </div>
       </div>
 
-      <!-- Usage vs Limits (real data) -->
+      <!-- Subscription Lifecycle Dates -->
+      @if (!isAdmin() && currentPlan() !== 'free') {
+        <div class="lifecycle-dates">
+          <div class="lifecycle-item">
+            <span class="lifecycle-label">Renews on</span>
+            <span class="lifecycle-value">{{ renewalDate() || '—' }}</span>
+          </div>
+          @if (cancelAtPeriodEnd()) {
+            <div class="lifecycle-item lifecycle-item--highlight">
+              <span class="lifecycle-label">Cancels on</span>
+              <span class="lifecycle-value">{{ renewalDate() || '—' }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Usage vs Limits (real data with progress bars) -->
       <div class="plan-limits">
         <h4>Usage</h4>
-        <div class="limits-grid">
-          <div class="limit-item">
-            <span class="limit-label">Businesses</span>
-            <span class="limit-value">
-              {{ businessCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}
-            </span>
+        @if (countsLoading()) {
+          <div class="usage-loading">
+            <div class="usage-skeleton"></div>
+            <div class="usage-skeleton"></div>
+            <div class="usage-skeleton"></div>
           </div>
-          <div class="limit-item">
-            <span class="limit-label">Published</span>
-            <span class="limit-value">
-              {{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}
-            </span>
+        } @else {
+          <div class="usage-grid">
+            <!-- Businesses -->
+            <div class="usage-item">
+              <div class="usage-header">
+                <span class="usage-label">Businesses</span>
+                <span class="usage-value" [class.limit-reached]="businessLimitReached()">
+                  {{ businessCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}
+                </span>
+              </div>
+              @if (businessProgress() !== null) {
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="businessProgress()" [ngClass]="getProgressClass(businessProgress())"></div>
+                </div>
+              } @else {
+                <div class="unlimited-label">Unlimited</div>
+              }
+              @if (businessLimitReached() && upgradeTarget()) {
+                <a routerLink="/admin/billing" class="limit-cta" (click)="onUpgrade(upgradeTarget()!)">Upgrade to {{ upgradeTarget() === 'pro' ? 'Pro' : 'Business' }}</a>
+              }
+            </div>
+
+            <!-- Published -->
+            <div class="usage-item">
+              <div class="usage-header">
+                <span class="usage-label">Published Websites</span>
+                <span class="usage-value" [class.limit-reached]="publishedLimitReached()">
+                  {{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}
+                </span>
+              </div>
+              @if (publishedProgress() !== null) {
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="publishedProgress()" [ngClass]="getProgressClass(publishedProgress())"></div>
+                </div>
+              } @else {
+                <div class="unlimited-label">Unlimited</div>
+              }
+              @if (publishedLimitReached() && upgradeTarget()) {
+                <a routerLink="/admin/billing" class="limit-cta" (click)="onUpgrade(upgradeTarget()!)">Upgrade to {{ upgradeTarget() === 'pro' ? 'Pro' : 'Business' }}</a>
+              }
+            </div>
+
+            <!-- Custom Domains -->
+            <div class="usage-item">
+              <div class="usage-header">
+                <span class="usage-label">Custom Domains</span>
+                <span class="usage-value" [class.limit-reached]="domainLimitReached()">
+                  {{ customDomainCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}
+                </span>
+              </div>
+              @if (domainProgress() !== null) {
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="domainProgress()" [ngClass]="getProgressClass(domainProgress())"></div>
+                </div>
+              } @else {
+                <div class="unlimited-label">Unlimited</div>
+              }
+              @if (domainLimitReached() && upgradeTarget()) {
+                <a routerLink="/admin/billing" class="limit-cta" (click)="onUpgrade(upgradeTarget()!)">Upgrade to {{ upgradeTarget() === 'pro' ? 'Pro' : 'Business' }}</a>
+              }
+            </div>
           </div>
-          <div class="limit-item">
-            <span class="limit-label">Custom Domains</span>
-            <span class="limit-value">
-              {{ customDomainCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}
-            </span>
-          </div>
-          <div class="limit-item">
-            <span class="limit-label">AI Generations/Month</span>
-            <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().aiGenerationsPerMonth) }}</span>
-          </div>
-        </div>
+        }
       </div>
 
       <div class="plan-features">
@@ -89,20 +194,6 @@
       }
     </div>
   </section>
-
-  @if (checkoutError()) {
-    <div class="checkout-error">
-      <i class="bi bi-exclamation-triangle"></i>
-      <span>{{ checkoutError() }}</span>
-    </div>
-  }
-
-  @if (checkoutSuccess()) {
-    <div class="checkout-success">
-      <i class="bi bi-check-circle"></i>
-      <span>{{ checkoutSuccess() }}</span>
-    </div>
-  }
 
   <!-- Available Plans -->
   <section class="available-plans-section">

@@ -268,6 +268,97 @@
   letter-spacing: -0.03em;
 }
 
+/* ============ USAGE SUMMARY ============ */
+.usage-summary {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+  margin-bottom: var(--space-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.usage-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  gap: var(--space-md);
+}
+
+.usage-items {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.usage-summary .usage-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--admin-surface-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.usage-summary .usage-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.usage-summary .usage-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.usage-summary .usage-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.usage-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--admin-surface-metal);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.usage-progress-fill {
+  height: 100%;
+  background: var(--admin-gold);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--admin-surface-metal);
+  border: 1px solid var(--admin-gold-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--admin-gold-bright);
+}
+
+.plan-badge i {
+  font-size: 0.85rem;
+  color: var(--admin-gold);
+}
+
+.plan-name {
+  font-weight: 600;
+}
+
 /* ============ LIST SECTION ============ */
 .list-section {
   background: var(--color-bg);
@@ -855,6 +946,15 @@
 
   .profile-meta {
     gap: var(--space-sm);
+  }
+
+  .usage-summary .usage-items {
+    grid-template-columns: 1fr;
+  }
+
+  .usage-summary-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .empty-state-steps {

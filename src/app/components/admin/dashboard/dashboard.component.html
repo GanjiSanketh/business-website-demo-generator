@@ -56,32 +56,53 @@
     </div>
   }
 
-  <!-- Plan Info Bar -->
-  <div class="plan-info-bar">
-    <div class="plan-badge">
-      <i class="bi" [ngClass]="currentPlanMetadata().id === 'free' ? 'bi-shield' : currentPlanMetadata().id === 'pro' ? 'bi-star' : 'bi-gem'"></i>
-      <span class="plan-name">{{ currentPlanMetadata().name }} Plan</span>
-    </div>
-    <div class="plan-usage">
-      <div class="usage-item">
-        <span class="usage-label">Businesses</span>
-        <span class="usage-value">{{ totalBusinesses() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}</span>
+  <!-- Usage Summary -->
+  <div class="usage-summary">
+    <div class="usage-summary-header">
+      <div class="plan-badge">
+        <i class="bi" [ngClass]="currentPlanMetadata().id === 'free' ? 'bi-shield' : currentPlanMetadata().id === 'pro' ? 'bi-star' : 'bi-gem'"></i>
+        <span class="plan-name">{{ currentPlanMetadata().name }} Plan</span>
       </div>
-      <div class="usage-item">
-        <span class="usage-label">Published</span>
-        <span class="usage-value">{{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}</span>
-      </div>
-      <div class="usage-item">
-        <span class="usage-label">Custom Domains</span>
-        <span class="usage-value">{{ remainingDomains() !== null ? (totalBusinesses() - (remainingDomains() ?? 0)) : '∞' }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
-      </div>
-    </div>
-    @if (!userService.isAdmin()) {
       <a routerLink="/admin/billing" class="btn-secondary">
         <i class="bi bi-credit-card"></i>
-        Upgrade
+        Manage Billing
       </a>
-    }
+    </div>
+    <div class="usage-items">
+      <div class="usage-item">
+        <div class="usage-item-header">
+          <span class="usage-label">Businesses</span>
+          <span class="usage-value">{{ totalBusinesses() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}</span>
+        </div>
+        @if (getProgressWidth(currentPlanLimits().maxBusinesses, totalBusinesses()) !== null) {
+          <div class="usage-progress">
+            <div class="usage-progress-fill" [style.width.%]="getProgressWidth(currentPlanLimits().maxBusinesses, totalBusinesses())"></div>
+          </div>
+        }
+      </div>
+      <div class="usage-item">
+        <div class="usage-item-header">
+          <span class="usage-label">Published</span>
+          <span class="usage-value">{{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}</span>
+        </div>
+        @if (getProgressWidth(currentPlanLimits().maxPublishedBusinesses, publishedCount()) !== null) {
+          <div class="usage-progress">
+            <div class="usage-progress-fill" [style.width.%]="getProgressWidth(currentPlanLimits().maxPublishedBusinesses, publishedCount())"></div>
+          </div>
+        }
+      </div>
+      <div class="usage-item">
+        <div class="usage-item-header">
+          <span class="usage-label">Domains</span>
+          <span class="usage-value">{{ customDomainCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
+        </div>
+        @if (getProgressWidth(currentPlanLimits().customDomains, customDomainCount()) !== null) {
+          <div class="usage-progress">
+            <div class="usage-progress-fill" [style.width.%]="getProgressWidth(currentPlanLimits().customDomains, customDomainCount())"></div>
+          </div>
+        }
+      </div>
+    </div>
   </div>
 
   <!-- Stats Cards -->

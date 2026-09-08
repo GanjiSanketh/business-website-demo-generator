@@ -15,7 +15,7 @@ import {
 import { getThemeDisplayName } from '../../demo/themes/theme.registry';
 import { getCategoryDisplayName } from '../../demo/categories/category.registry';
 import { isCustomDomainActive } from '../../demo/shared/domain-utils';
-import { PLAN_METADATA } from '../../../models/user.model';
+import { PLAN_METADATA, isUnlimited } from '../../../models/user.model';
 
 type StatusFilter = 'all' | 'published' | 'draft';
 
@@ -53,6 +53,7 @@ export class DashboardComponent implements OnInit {
   remainingBusinesses = computed(() => this.subscriptionService.getRemainingBusinessCount());
   remainingPublished = computed(() => this.subscriptionService.getRemainingPublishedBusinessCount());
   remainingDomains = computed(() => this.subscriptionService.getRemainingCustomDomains());
+  customDomainCount = computed(() => this.subscriptionService.getCustomDomainCount());
 
   profile = computed(() => this.userService.profile());
   displayName = computed(() => this.profile()?.displayName || 'there');
@@ -319,5 +320,11 @@ export class DashboardComponent implements OnInit {
 
   getUpgradeUrl(): string {
     return this.subscriptionService.getUpgradeUrl();
+  }
+
+  getProgressWidth(limit: number | null, current: number): number | null {
+    if (isUnlimited(limit) || limit === null) return null;
+    if (limit === 0) return 0;
+    return Math.min(100, Math.round((current / limit) * 100));
   }
 }
