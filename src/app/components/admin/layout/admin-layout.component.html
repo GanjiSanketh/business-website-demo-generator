@@ -21,12 +21,63 @@
           >
             New Demo
           </a>
+          <a
+            routerLink="/admin/billing"
+            routerLinkActive="active"
+          >
+            Billing
+          </a>
         </nav>
       </div>
       <div class="nav-right">
-        <button class="nav-logout" (click)="logout()">
-          Sign out
-        </button>
+        <div class="user-menu-wrapper">
+          <button class="user-menu-trigger" (click)="toggleProfileMenu()">
+            @if (photoURL()) {
+              <img class="user-avatar" [src]="photoURL()!" [alt]="displayName()" />
+            } @else {
+              <span class="user-avatar user-avatar-fallback">{{ initials() }}</span>
+            }
+            <span class="user-name">{{ displayName() }}</span>
+            <i class="bi" [ngClass]="profileMenuOpen() ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+          </button>
+          @if (profileMenuOpen()) {
+            <div class="profile-dropdown">
+              <div class="dropdown-header">
+                <div class="dropdown-user-info">
+                  @if (photoURL()) {
+                    <img class="dropdown-avatar" [src]="photoURL()!" [alt]="displayName()" />
+                  } @else {
+                    <span class="dropdown-avatar dropdown-avatar-fallback">{{ initials() }}</span>
+                  }
+                  <div class="dropdown-user-text">
+                    <span class="dropdown-user-name">{{ displayName() }}</span>
+                    <span class="dropdown-user-email">{{ email() }}</span>
+                  </div>
+                </div>
+                <div class="dropdown-meta">
+                  <span class="meta-badge role-badge" [class.admin]="isAdmin()">
+                    <i class="bi" [ngClass]="isAdmin() ? 'bi-person-badge' : 'bi-person'"></i>
+                    {{ isAdmin() ? 'Admin' : 'User' }}
+                  </span>
+                  <span class="meta-badge plan-badge">
+                    <i class="bi" [ngClass]="planName() === 'Free' ? 'bi-shield' : planName() === 'Pro' ? 'bi-star' : 'bi-gem'"></i>
+                    {{ planName() }} Plan
+                  </span>
+                </div>
+              </div>
+              <div class="dropdown-divider"></div>
+              <a routerLink="/admin/billing" class="dropdown-item" (click)="closeProfileMenu()">
+                <i class="bi bi-credit-card"></i>
+                Billing & Subscription
+              </a>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item dropdown-item-danger" (click)="logout()">
+                <i class="bi bi-box-arrow-right"></i>
+                Sign out
+              </button>
+            </div>
+          }
+        </div>
       </div>
     </div>
   </header>
@@ -37,6 +88,13 @@
       <i class="bi" [ngClass]="sidebarOpen() ? 'bi-x-lg' : 'bi-list'"></i>
     </button>
     <span class="mobile-title">Demo Generator</span>
+    <div class="mobile-user-area">
+      @if (photoURL()) {
+        <img class="mobile-user-avatar" [src]="photoURL()!" [alt]="displayName()" />
+      } @else {
+        <span class="mobile-user-avatar mobile-user-avatar-fallback">{{ initials() }}</span>
+      }
+    </div>
   </div>
 
   <!-- Mobile overlay -->
@@ -61,6 +119,24 @@
     >
       New Demo
     </a>
+    <a
+      routerLink="/admin/billing"
+      (click)="closeSidebar()"
+    >
+      Billing
+    </a>
+    <div class="mobile-nav-divider"></div>
+    <div class="mobile-nav-user">
+      @if (photoURL()) {
+        <img class="mobile-nav-avatar" [src]="photoURL()!" [alt]="displayName()" />
+      } @else {
+        <span class="mobile-nav-avatar mobile-nav-avatar-fallback">{{ initials() }}</span>
+      }
+      <div class="mobile-nav-user-info">
+        <span class="mobile-nav-user-name">{{ displayName() }}</span>
+        <span class="mobile-nav-user-email">{{ email() }}</span>
+      </div>
+    </div>
     <button class="mobile-logout" (click)="logout()">
       Sign out
     </button>

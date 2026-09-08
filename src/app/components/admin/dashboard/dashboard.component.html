@@ -1,14 +1,60 @@
 <div class="dashboard">
-  <div class="page-header">
-    <div>
-      <h1>Dashboard</h1>
-      <p>Manage your business website demos</p>
+  <!-- Welcome Section -->
+  @if (!loading()) {
+    <div class="welcome-section">
+      <div class="welcome-text">
+        <h1>Welcome back, {{ displayName() }}!</h1>
+        <p>Manage your business website demos from one place.</p>
+      </div>
+      <div class="welcome-actions">
+        <button class="btn-primary" [disabled]="!canCreateBusiness()" [title]="!canCreateBusiness() ? 'Upgrade your plan to create more businesses' : ''" (click)="router.navigate(['/admin/business/new'])">
+          <i class="bi bi-plus-lg"></i>
+          New Business
+        </button>
+      </div>
     </div>
-    <button class="btn-primary" [disabled]="!canCreateBusiness()" [title]="!canCreateBusiness() ? 'Upgrade your plan to create more businesses' : ''" (click)="router.navigate(['/admin/business/new'])">
-      <i class="bi bi-plus-lg"></i>
-      New Business
-    </button>
-  </div>
+
+    <!-- Profile Info Bar -->
+    <div class="profile-bar">
+      <div class="profile-info">
+        <div class="profile-avatar-section">
+          @if (photoURL()) {
+            <img class="profile-avatar" [src]="photoURL()!" [alt]="displayName()" />
+          } @else {
+            <span class="profile-avatar profile-avatar-fallback">{{ userInitials() }}</span>
+          }
+          <div class="profile-details">
+            <span class="profile-name">{{ displayName() }}</span>
+            <span class="profile-email">{{ userEmail() }}</span>
+          </div>
+        </div>
+        <div class="profile-meta">
+          <span class="profile-meta-item">
+            <i class="bi" [ngClass]="isAdmin() ? 'bi-person-badge' : 'bi-person'"></i>
+            {{ isAdmin() ? 'Admin' : 'User' }}
+          </span>
+          <span class="profile-meta-item">
+            <i class="bi" [ngClass]="currentPlanMetadata().id === 'free' ? 'bi-shield' : currentPlanMetadata().id === 'pro' ? 'bi-star' : 'bi-gem'"></i>
+            {{ currentPlanMetadata().name }} Plan
+          </span>
+          <span class="profile-meta-item">
+            <i class="bi bi-check-circle"></i>
+            {{ subscriptionStatus() }}
+          </span>
+          @if (memberSince()) {
+            <span class="profile-meta-item">
+              <i class="bi bi-calendar3"></i>
+              Member since {{ memberSince() }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="welcome-section welcome-loading">
+      <div class="welcome-skeleton"></div>
+    </div>
+  }
 
   <!-- Plan Info Bar -->
   <div class="plan-info-bar">
@@ -27,7 +73,7 @@
       </div>
       <div class="usage-item">
         <span class="usage-label">Custom Domains</span>
-        <span class="usage-value">{{ remainingDomains() !== null ? (totalBusinesses() - remainingDomains()) : '∞' }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
+        <span class="usage-value">{{ remainingDomains() !== null ? (totalBusinesses() - (remainingDomains() ?? 0)) : '∞' }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
       </div>
     </div>
     @if (!userService.isAdmin()) {
@@ -97,19 +143,38 @@
       </div>
     } @else if (filteredBusinesses.length === 0) {
       <div class="empty-state">
-        <i class="bi bi-building"></i>
-        <h3>No businesses found</h3>
-        <p>
-          @if (searchQuery() || statusFilter() !== 'all') {
-            No businesses match your filters. Try adjusting your search or filter.
-          } @else {
-            Create your first business to get started.
-          }
-        </p>
-        @if (!searchQuery() && statusFilter() === 'all') {
-          <a routerLink="/admin/business/new" class="btn-primary">
+        @if (searchQuery() || statusFilter() !== 'all') {
+          <i class="bi bi-search"></i>
+          <h3>No businesses match your filters</h3>
+          <p>Try adjusting your search or filter criteria.</p>
+        } @else {
+          <div class="empty-state-icon">
+            <i class="bi bi-building"></i>
+            <i class="bi bi-plus-circle empty-state-plus"></i>
+          </div>
+          <h3>Create your first business website</h3>
+          <p>Get started by creating a professional business website demo. Choose from {{ isAdmin() ? 'all available' : 'multiple' }} templates and customize everything.</p>
+          <div class="empty-state-steps">
+            <div class="empty-step">
+              <span class="step-number">1</span>
+              <span class="step-text">Choose a business category</span>
+            </div>
+            <div class="empty-step">
+              <span class="step-number">2</span>
+              <span class="step-text">Pick a template and theme</span>
+            </div>
+            <div class="empty-step">
+              <span class="step-number">3</span>
+              <span class="step-text">Add your business details</span>
+            </div>
+            <div class="empty-step">
+              <span class="step-number">4</span>
+              <span class="step-text">Publish and share your demo</span>
+            </div>
+          </div>
+          <a routerLink="/admin/business/new" class="btn-primary empty-state-cta">
             <i class="bi bi-plus-lg"></i>
-            Create Business
+            Create Your First Business
           </a>
         }
       </div>

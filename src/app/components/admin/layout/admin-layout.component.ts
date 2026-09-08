@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { UserService } from '../../../services/user.service';
 
 @Component({
   selector: 'app-admin-layout',
@@ -12,8 +13,28 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class AdminLayoutComponent implements OnInit {
   sidebarOpen = signal(false);
-  /** Full-bleed layout for editor-style routes (website builder). */
   wideLayout = signal(false);
+  profileMenuOpen = signal(false);
+
+  private userService = inject(UserService);
+
+  profile = computed(() => this.userService.profile());
+  displayName = computed(() => this.profile()?.displayName || 'User');
+  email = computed(() => this.profile()?.email || '');
+  photoURL = computed(() => this.profile()?.photoURL);
+  isAdmin = computed(() => this.userService.isAdmin());
+  planName = computed(() => {
+    const plan = this.profile()?.plan;
+    return plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Free';
+  });
+  initials = computed(() => {
+    const name = this.displayName();
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  });
 
   constructor(private authService: AuthService, private router: Router) {}
 
@@ -27,6 +48,22 @@ export class AdminLayoutComponent implements OnInit {
     });
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.user-menu-wrapper')) {
+      this.profileMenuOpen.set(false);
+    }
+  }
+
+  toggleProfileMenu(): void {
+    this.profileMenuOpen.set(!this.profileMenuOpen());
+  }
+
+  closeProfileMenu(): void {
+    this.profileMenuOpen.set(false);
+  }
+
   toggleSidebar(): void {
     this.sidebarOpen.set(!this.sidebarOpen());
   }
@@ -36,6 +73,7 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   async logout(): Promise<void> {
+    this.profileMenuOpen.set(false);
     await this.authService.logout();
     this.router.navigate(['/login']);
   }

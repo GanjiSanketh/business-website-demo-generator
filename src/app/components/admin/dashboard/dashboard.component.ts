@@ -15,6 +15,7 @@ import {
 import { getThemeDisplayName } from '../../demo/themes/theme.registry';
 import { getCategoryDisplayName } from '../../demo/categories/category.registry';
 import { isCustomDomainActive } from '../../demo/shared/domain-utils';
+import { PLAN_METADATA } from '../../../models/user.model';
 
 type StatusFilter = 'all' | 'published' | 'draft';
 
@@ -53,11 +54,36 @@ export class DashboardComponent implements OnInit {
   remainingPublished = computed(() => this.subscriptionService.getRemainingPublishedBusinessCount());
   remainingDomains = computed(() => this.subscriptionService.getRemainingCustomDomains());
 
+  profile = computed(() => this.userService.profile());
+  displayName = computed(() => this.profile()?.displayName || 'there');
+  photoURL = computed(() => this.profile()?.photoURL);
+  isAdmin = computed(() => this.userService.isAdmin());
+  userEmail = computed(() => this.profile()?.email || '');
+  subscriptionStatus = computed(() => {
+    const status = this.profile()?.subscriptionStatus;
+    if (!status) return 'Active';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  });
+  memberSince = computed(() => {
+    const createdAt = this.profile()?.createdAt;
+    if (!createdAt) return '';
+    const date = createdAt instanceof Date ? createdAt : createdAt.toDate?.() || new Date(createdAt as any);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  });
+  userInitials = computed(() => {
+    const name = this.displayName();
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  });
+
   constructor(
     private businessService: BusinessService,
     private authService: AuthService,
     private storageService: StorageService,
-    private router: Router
+    public router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {

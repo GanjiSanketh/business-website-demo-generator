@@ -18,7 +18,17 @@ export const authGuard: CanActivateFn = async () => {
       return true;
     } catch (err) {
       console.error('[AuthGuard] Failed to load user profile:', err);
-      await authService.logout();
+
+      // Retry once for transient errors (network issues, Firestore timeouts)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await userService.loadProfile();
+        return true;
+      } catch (retryErr) {
+        console.error('[AuthGuard] Profile load retry failed:', retryErr);
+        // Only log out if profile cannot be loaded after retry
+        // Transient errors should not permanently block access
+      }
     }
   }
 
