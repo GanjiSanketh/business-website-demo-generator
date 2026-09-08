@@ -88,7 +88,7 @@ export class UserService implements OnDestroy {
     }
   }
 
-  private async createProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL?: string }): Promise<UserProfile> {
+  private async createProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL?: string | null }): Promise<UserProfile> {
     const db = await this.getDb();
     const now = Timestamp.now();
 
@@ -100,7 +100,7 @@ export class UserService implements OnDestroy {
       uid: user.uid,
       email,
       displayName: user.displayName || email,
-      photoURL: user.photoURL,
+      photoURL: user.photoURL ?? undefined,
       role,
       plan: 'free',
       subscriptionStatus: 'active',

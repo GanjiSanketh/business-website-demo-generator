@@ -29,6 +29,20 @@ export interface UserProfile {
   subscription?: UserSubscription;
 }
 
+export interface PlanDefinition {
+  id: PlanId;
+  name: string;
+  price: number;
+  description: string;
+  features: {
+    premiumTemplates: boolean;
+    customDomain: boolean;
+    advancedAnalytics: boolean;
+    removeBranding: boolean;
+    aiGeneration: boolean;
+  };
+}
+
 export const DEFAULT_USER_PROFILE: Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL' | 'createdAt' | 'updatedAt'> = {
   role: 'user',
   plan: 'free',
