@@ -86,6 +86,7 @@ export interface AnnouncementConfig {
 
 export interface Business {
   id?: string;
+  ownerId: string;
   businessName: string;
   category: string;
   templateId: string;

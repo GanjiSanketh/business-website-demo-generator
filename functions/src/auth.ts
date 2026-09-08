@@ -1,15 +1,12 @@
 import * as functions from 'firebase-functions/v2';
+import * as admin from 'firebase-admin';
 
 /**
  * Shared authorization for callable Cloud Functions.
  *
- * The application's authorization model is an email allowlist (see
- * src/app/services/auth.service.ts on the client). Every callable function
- * that touches custom domains or publishing must go through this check so
- * the allowlist stays in a single place.
+ * The application's authorization model uses Firestore user profiles.
+ * Admin users have role == 'admin' in their user profile.
  */
-export const ALLOWED_EMAILS = ['gsanketh7121@gmail.com'];
-
 export type CallableRequest<T> = {
   data: T;
   auth?: {
@@ -26,12 +23,12 @@ export type CallableRequest<T> = {
 };
 
 /**
- * Validates that the caller is authenticated AND on the allowlist.
+ * Validates that the caller is authenticated.
  * Throws an HttpsError otherwise.
  */
-export async function checkAuthorization(
+export async function requireAuth(
   auth: CallableRequest<any>['auth']
-): Promise<{ uid: string; email: string }> {
+): Promise<{ uid: string; email?: string }> {
   if (!auth) {
     throw new functions.https.HttpsError(
       'unauthenticated',
@@ -39,13 +36,75 @@ export async function checkAuthorization(
     );
   }
 
-  const email = auth.token.email;
-  if (!email || !ALLOWED_EMAILS.includes(email)) {
+  return { uid: auth.uid, email: auth.token.email };
+}
+
+/**
+ * Validates that the caller is authenticated AND has admin role.
+ * Uses Admin SDK to fetch user profile from Firestore.
+ * Throws an HttpsError otherwise.
+ */
+export async function requireAdmin(
+  auth: CallableRequest<any>['auth']
+): Promise<{ uid: string; email?: string }> {
+  const { uid } = await requireAuth(auth);
+
+  const db = admin.firestore();
+  const userDoc = await db.collection('users').doc(uid).get();
+
+  if (!userDoc.exists) {
     throw new functions.https.HttpsError(
       'permission-denied',
-      'You are not authorized to perform this action'
+      'User profile not found'
     );
   }
 
-  return { uid: auth.uid, email };
+  const userData = userDoc.data();
+  if (userData?.role !== 'admin') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Admin access required'
+    );
+  }
+
+  return { uid, email: userData?.email };
+}
+
+/**
+ * Validates that the caller owns the specified business.
+ * Throws an HttpsError if not owner or admin.
+ */
+export async function requireBusinessOwner(
+  auth: CallableRequest<any>['auth'],
+  businessId: string
+): Promise<{ uid: string; email?: string }> {
+  const { uid } = await requireAuth(auth);
+
+  const db = admin.firestore();
+  const businessDoc = await db.collection('businesses').doc(businessId).get();
+
+  if (!businessDoc.exists) {
+    throw new functions.https.HttpsError(
+      'not-found',
+      'Business not found'
+    );
+  }
+
+  const businessData = businessDoc.data()!;
+
+  // Admin can access any business
+  const userDoc = await db.collection('users').doc(uid).get();
+  if (userDoc.exists && userDoc.data()?.role === 'admin') {
+    return { uid, email: userDoc.data()?.email };
+  }
+
+  // Check ownership
+  if (businessData.ownerId !== uid) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'You do not own this business'
+    );
+  }
+
+  return { uid, email: auth.token.email };
 }

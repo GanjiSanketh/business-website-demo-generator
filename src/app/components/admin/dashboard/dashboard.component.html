@@ -4,10 +4,38 @@
       <h1>Dashboard</h1>
       <p>Manage your business website demos</p>
     </div>
-    <a routerLink="/admin/business/new" class="btn-primary">
+    <button class="btn-primary" [disabled]="!canCreateBusiness()" [title]="!canCreateBusiness() ? 'Upgrade your plan to create more businesses' : ''" (click)="router.navigate(['/admin/business/new'])">
       <i class="bi bi-plus-lg"></i>
       New Business
-    </a>
+    </button>
+  </div>
+
+  <!-- Plan Info Bar -->
+  <div class="plan-info-bar">
+    <div class="plan-badge">
+      <i class="bi" [ngClass]="currentPlanMetadata().id === 'free' ? 'bi-shield' : currentPlanMetadata().id === 'pro' ? 'bi-star' : 'bi-gem'"></i>
+      <span class="plan-name">{{ currentPlanMetadata().name }} Plan</span>
+    </div>
+    <div class="plan-usage">
+      <div class="usage-item">
+        <span class="usage-label">Businesses</span>
+        <span class="usage-value">{{ totalBusinesses() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}</span>
+      </div>
+      <div class="usage-item">
+        <span class="usage-label">Published</span>
+        <span class="usage-value">{{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}</span>
+      </div>
+      <div class="usage-item">
+        <span class="usage-label">Custom Domains</span>
+        <span class="usage-value">{{ remainingDomains() !== null ? (totalBusinesses() - remainingDomains()) : '∞' }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
+      </div>
+    </div>
+    @if (!userService.isAdmin()) {
+      <a routerLink="/admin/billing" class="btn-secondary">
+        <i class="bi bi-credit-card"></i>
+        Upgrade
+      </a>
+    }
   </div>
 
   <!-- Stats Cards -->

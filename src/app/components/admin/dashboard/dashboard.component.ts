@@ -1,9 +1,11 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { BusinessService } from '../../../services/business.service';
 import { Business } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
+import { UserService } from '../../../services/user.service';
+import { SubscriptionService } from '../../../services/subscription.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotDialogComponent } from '../screenshot-dialog/screenshot-dialog.component';
 import {
@@ -24,6 +26,9 @@ type StatusFilter = 'all' | 'published' | 'draft';
   styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
+  subscriptionService = inject(SubscriptionService);
+  userService = inject(UserService);
+
   businesses = signal<Business[]>([]);
   loading = signal(true);
   totalBusinesses = signal(0);
@@ -41,6 +46,13 @@ export class DashboardComponent implements OnInit {
   toastMessage = signal('');
   private toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  currentPlan = computed(() => this.subscriptionService.currentPlan());
+  currentPlanMetadata = computed(() => this.subscriptionService.currentPlanMetadata());
+  currentPlanLimits = computed(() => this.subscriptionService.currentPlanLimits());
+  remainingBusinesses = computed(() => this.subscriptionService.getRemainingBusinessCount());
+  remainingPublished = computed(() => this.subscriptionService.getRemainingPublishedBusinessCount());
+  remainingDomains = computed(() => this.subscriptionService.getRemainingCustomDomains());
+
   constructor(
     private businessService: BusinessService,
     private authService: AuthService,
@@ -50,6 +62,7 @@ export class DashboardComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadBusinesses();
+    await this.subscriptionService.loadUsage();
   }
 
   showToast(message: string): void {
@@ -85,13 +98,11 @@ export class DashboardComponent implements OnInit {
   get filteredBusinesses(): Business[] {
     let result = this.businesses();
 
-    // Status filter
     const filter = this.statusFilter();
     if (filter !== 'all') {
       result = result.filter((b) => b.status === filter);
     }
 
-    // Search query
     const q = this.searchQuery().toLowerCase().trim();
     if (q) {
       result = result.filter(
@@ -156,6 +167,15 @@ export class DashboardComponent implements OnInit {
 
   async toggleStatus(business: Business): Promise<void> {
     const newStatus = business.status === 'published' ? 'draft' : 'published';
+
+    if (newStatus === 'published') {
+      const remaining = this.remainingPublished();
+      if (remaining !== null && remaining <= 0) {
+        this.showToast(`Your ${this.currentPlanMetadata().name} plan allows ${this.subscriptionService.formatLimit(this.currentPlanLimits().maxPublishedBusinesses)} published business${this.currentPlanLimits().maxPublishedBusinesses === 1 ? '' : 'es'}. Upgrade to publish more.`);
+        return;
+      }
+    }
+
     await this.businessService.updateBusiness(business.id!, {
       status: newStatus,
     });
@@ -168,6 +188,12 @@ export class DashboardComponent implements OnInit {
   }
 
   async duplicateBusiness(business: Business): Promise<void> {
+    const remaining = this.remainingBusinesses();
+    if (remaining !== null && remaining <= 0) {
+      this.showToast(`Your ${this.currentPlanMetadata().name} plan allows ${this.subscriptionService.formatLimit(this.currentPlanLimits().maxBusinesses)} business${this.currentPlanLimits().maxBusinesses === 1 ? '' : 'es'}. Upgrade to create more.`);
+      return;
+    }
+
     this.duplicatingId.set(business.id!);
     try {
       const newId = await this.businessService.duplicateBusiness(business);
@@ -223,7 +249,6 @@ export class DashboardComponent implements OnInit {
     return getTemplateDisplayName(templateId);
   }
 
-  /** Friendly theme name, falling back to the template's default theme. */
   getThemeLabel(business: Business): string {
     return getThemeDisplayName(
       business.themeId,
@@ -231,17 +256,14 @@ export class DashboardComponent implements OnInit {
     );
   }
 
-  /** Friendly category name ("salon"/"Salon" → "Salon & Beauty"). */
   getCategoryLabel(business: Business): string {
     return getCategoryDisplayName(business.category);
   }
 
-  /** Check if business has a verified custom domain. */
   hasVerifiedCustomDomain(business: Business): boolean {
     return isCustomDomainActive(business.customDomain);
   }
 
-  /** Get custom domain display string. */
   getCustomDomainLabel(business: Business): string {
     const cd = business.customDomain;
     if (!cd?.domain) return '';
@@ -252,5 +274,17 @@ export class DashboardComponent implements OnInit {
       disabled: 'Disabled',
     };
     return `${cd.domain} (${statusLabels[cd.status] || cd.status})`;
+  }
+
+  canCreateBusiness(): boolean {
+    return this.subscriptionService.canCreateBusiness();
+  }
+
+  canPublishBusiness(): boolean {
+    return this.subscriptionService.canPublishBusiness();
+  }
+
+  getUpgradeUrl(): string {
+    return this.subscriptionService.getUpgradeUrl();
   }
 }

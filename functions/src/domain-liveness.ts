@@ -4,7 +4,7 @@ import * as https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import type { LookupAddress, LookupOptions } from 'node:dns';
 import { isIP } from 'node:net';
-import { checkAuthorization, CallableRequest } from './auth';
+import { requireAuth, CallableRequest } from './auth';
 
 export interface CheckCustomDomainLiveRequest {
   businessId: string;
@@ -16,52 +16,39 @@ export interface CheckCustomDomainLiveResponse {
   message?: string;
 }
 
-/**
- * Marker every page served by this application contains in <head>
- * (src/index.html). A custom domain is only considered LIVE when an HTTPS
- * GET to its root returns this application's own markup — ownership
- * verification (TXT) alone is never enough.
- */
 const APP_MARKER = 'name="application-name" content="Business Demo Generator"';
 
-/** RFC 1918 / loopback / link-local / CGNAT / IPv6-private ranges. */
 function isPrivateIp(address: string): boolean {
   if (isIP(address) === 4) {
     const parts = address.split('.').map(Number);
     if (parts[0] === 10) return true;
     if (parts[0] === 127) return true;
     if (parts[0] === 0) return true;
-    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true; // CGNAT
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
     if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
     if (parts[0] === 192 && parts[1] === 168) return true;
-    if (parts[0] === 169 && parts[1] === 254) return true; // link-local
+    if (parts[0] === 169 && parts[1] === 254) return true;
     return false;
   }
   if (isIP(address) === 6) {
     const lower = address.toLowerCase();
     if (lower === '::1') return true;
-    if (lower.startsWith('fe80')) return true; // link-local
-    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // ULA
+    if (lower.startsWith('fe80')) return true;
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
     if (lower.startsWith('::ffff:127')) return true;
     if (lower.startsWith('::ffff:10.')) return true;
     if (lower.startsWith('::ffff:192.168.')) return true;
     if (lower.startsWith('::ffff:172.16.') || lower.startsWith('::ffff:172.17.') || lower.startsWith('::ffff:172.18.') || lower.startsWith('::ffff:172.19.') || lower.startsWith('::ffff:172.20.') || lower.startsWith('::ffff:172.21.') || lower.startsWith('::ffff:172.22.') || lower.startsWith('::ffff:172.23.') || lower.startsWith('::ffff:172.24.') || lower.startsWith('::ffff:172.25.') || lower.startsWith('::ffff:172.26.') || lower.startsWith('::ffff:172.27.') || lower.startsWith('::ffff:172.28.') || lower.startsWith('::ffff:172.29.') || lower.startsWith('::ffff:172.30.') || lower.startsWith('::ffff:172.31.')) return true;
     return false;
   }
-  return true; // unresolvable / unknown format — treat as unsafe
+  return true;
 }
 
-/**
- * Probes https://<domain>/ and reports whether this application's demo page
- * is actually being served for the business. Never trusts a bare 200: the
- * body must contain the app marker and the business' demo URL.
- */
 async function probeDomain(
   domain: string,
   slug: string,
   timeoutMs: number
 ): Promise<{ ok: boolean; reason: string }> {
-  // SSRF guard: only probe public addresses.
   let validatedAddress: string;
   let validatedFamily: number;
   try {
@@ -83,11 +70,6 @@ async function probeDomain(
     const req = https.get(
       {
         hostname: domain,
-        // DNS-rebinding guard: pin the actual connection to the address
-        // validated above. The socket is tied to the checked public IP while
-        // TLS/SNI still use the real hostname (certificate validation is
-        // unchanged), so a hostile DNS flip between validation and connection
-        // cannot redirect the probe to an internal address.
         lookup: (
           _hostname: string,
           _options: LookupOptions,
@@ -156,21 +138,10 @@ async function probeDomain(
   });
 }
 
-/**
- * Checks whether a verified custom domain is actually live — i.e. an HTTPS
- * request to https://<domain>/ successfully serves the published demo of the
- * owning business.
- *
- * This is the only way a domain transitions from 'verified' (ownership
- * proven via TXT) to 'live' (the application demonstrably answers on it).
- * The transition is NOT automatic: the operator must first add the domain to
- * Firebase Hosting (console/CLI) and point the domain's DNS at Firebase
- * Hosting. This function then confirms the result end-to-end.
- */
 export async function checkCustomDomainLive(
   request: CallableRequest<CheckCustomDomainLiveRequest>
 ): Promise<CheckCustomDomainLiveResponse> {
-  await checkAuthorization(request.auth);
+  const { uid } = await requireAuth(request.auth);
 
   const { businessId } = request.data;
   if (!businessId) {
@@ -189,6 +160,17 @@ export async function checkCustomDomainLive(
   }
 
   const data = snap.data()!;
+
+  // Check ownership (admin or owner)
+  const userDoc = await db.collection('users').doc(uid).get();
+  const isAdmin = userDoc.exists && userDoc.data()?.role === 'admin';
+  if (!isAdmin && data.ownerId !== uid) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'You do not own this business'
+    );
+  }
+
   const customDomain = data.customDomain;
 
   if (!customDomain?.domain) {

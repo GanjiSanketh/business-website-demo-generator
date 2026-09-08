@@ -9,8 +9,7 @@ import {
   User,
 } from 'firebase/auth';
 import { getFirebaseConfig } from '../environment/environment';
-
-const ALLOWED_EMAILS = ['gsanketh7121@gmail.com'];
+import { UserService } from './user.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService implements OnDestroy {
@@ -21,22 +20,10 @@ export class AuthService implements OnDestroy {
   currentUser = signal<User | null>(null);
   loading = signal(true);
   isAuthenticated = computed(() => this.currentUser() !== null);
-  isAuthorized = computed(() => {
-    const user = this.currentUser();
-    return user !== null && ALLOWED_EMAILS.includes(user.email ?? '');
-  });
 
-  /**
-   * Resolves once Firebase app initialization has settled (successfully or
-   * not). Other services that depend on the Firebase app being ready (e.g.
-   * BusinessService.getDb()) should await this before calling getApps() —
-   * initFirebase() runs asynchronously from the constructor, so without
-   * this, a synchronous getApps() check right after injection can run
-   * before the app actually exists yet.
-   */
   readonly ready: Promise<void>;
 
-  constructor() {
+  constructor(private userService: UserService) {
     this.ready = this.initFirebase();
   }
 
@@ -46,9 +33,13 @@ export class AuthService implements OnDestroy {
       this.app = initializeApp(config);
       this.auth = getAuth(this.app);
 
-      this.unsubscribe = onAuthStateChanged(this.auth, (user) => {
+      this.unsubscribe = onAuthStateChanged(this.auth, async (user) => {
         this.currentUser.set(user);
         this.loading.set(false);
+
+        if (user) {
+          await this.userService.loadProfile();
+        }
       });
     } catch (err) {
       console.error('[Auth] Firebase initialization failed:', err);
@@ -66,12 +57,6 @@ export class AuthService implements OnDestroy {
     }
     const provider = new GoogleAuthProvider();
     const credential = await signInWithPopup(this.auth, provider);
-    const email = credential.user.email ?? '';
-
-    if (!ALLOWED_EMAILS.includes(email)) {
-      await signOut(this.auth);
-      return { authorized: false };
-    }
 
     return { authorized: true };
   }

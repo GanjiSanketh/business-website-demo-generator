@@ -13,11 +13,11 @@ import {
   orderBy,
   DocumentData,
   Timestamp,
-  writeBatch,
 } from 'firebase/firestore';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AuthService } from './auth.service';
+import { UserService } from './user.service';
 import { Business, CustomDomainConfig } from '../models/business.model';
 import {
   normalizeDomain,
@@ -38,14 +38,11 @@ export class BusinessService {
   businesses = signal<Business[]>([]);
   loading = signal(false);
 
-  constructor(private authService: AuthService) {
-    // Do NOT initialize Firestore here — Firebase may not be ready yet.
-    // Use lazy init via getDb().
-  }
+  constructor(
+    private authService: AuthService,
+    private userService: UserService
+  ) {}
 
-  /**
-   * Lazily initialize and return the Cloud Functions instance.
-   */
   private async getFunctionsInstance() {
     if (this.functions && this.functionsInitialized) {
       return this.functions;
@@ -67,9 +64,6 @@ export class BusinessService {
     }
   }
 
-  /**
-   * Wrap a Firestore promise with a timeout so it never hangs forever.
-   */
   private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -88,19 +82,11 @@ export class BusinessService {
     });
   }
 
-  /**
-   * Lazily initialize and return the Firestore instance.
-   */
   private async getDb() {
     if (this.db && this.dbInitialized) {
       return this.db;
     }
 
-    // AuthService kicks off Firebase app initialization asynchronously from
-    // its own constructor. Without waiting for it here, a call to getApps()
-    // right after injection can run before the app has actually been
-    // created — this reliably loses that race during SSR, and can flake in
-    // the browser too, since nothing else guarantees the ordering.
     await this.authService.ready;
 
     try {
@@ -119,14 +105,36 @@ export class BusinessService {
     }
   }
 
+  private getCurrentUserId(): string {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error('No authenticated user');
+    return user.uid;
+  }
+
+  private isAdmin(): boolean {
+    return this.userService.isAdmin();
+  }
+
   async getBusinesses(): Promise<Business[]> {
     this.loading.set(true);
     try {
       const db = await this.getDb();
-      const q = query(
-        collection(db, this.collectionName),
-        orderBy('createdAt', 'desc')
-      );
+      let q;
+
+      if (this.isAdmin()) {
+        q = query(
+          collection(db, this.collectionName),
+          orderBy('createdAt', 'desc')
+        );
+      } else {
+        const ownerId = this.getCurrentUserId();
+        q = query(
+          collection(db, this.collectionName),
+          where('ownerId', '==', ownerId),
+          orderBy('createdAt', 'desc')
+        );
+      }
+
       const snapshot = await this.withTimeout(getDocs(q), 15000, 'getBusinesses');
       const businesses = snapshot.docs.map((d) => ({
         id: d.id,
@@ -166,18 +174,9 @@ export class BusinessService {
     return { id: d.id, ...d.data() } as Business;
   }
 
-  /** Short-lived host → slug cache so custom-domain requests don't pay a
-   *  Firestore read on every navigation. */
   private hostSlugCache = new Map<string, { slug: string; expiresAt: number }>();
   private static readonly HOST_CACHE_TTL_MS = 60_000;
 
-  /**
-   * Resolve the published business serving a custom-domain host (used by
-   * host-based demo routing — the root '/' of a verified/live custom domain
-   * renders the owning business' demo). Only businesses whose custom domain
-   * is ownership-verified ('verified') or confirmed live ('live') AND whose
-   * status is 'published' are ever resolved this way.
-   */
   async getBusinessByHost(host: string): Promise<Business | null> {
     const key = normalizeHostname(host);
     if (!key || isPlatformHost(key)) return null;
@@ -188,8 +187,6 @@ export class BusinessService {
     }
 
     const db = await this.getDb();
-    // Exact match first, then the www-less variant (so a domain connected as
-    // "example.com" also answers on "www.example.com" and vice versa).
     const candidates = [...new Set([key, key.replace(/^www\./, '')])];
     let slug = '';
     for (const candidate of candidates) {
@@ -214,10 +211,13 @@ export class BusinessService {
     return slug ? this.getBusinessBySlug(slug) : null;
   }
 
-  async createBusiness(business: Business): Promise<string> {
+  async createBusiness(business: Omit<Business, 'id' | 'ownerId'>): Promise<string> {
     const db = await this.getDb();
     const now = Timestamp.now();
+    const ownerId = this.getCurrentUserId();
+
     const dataToSave: DocumentData = {
+      ownerId,
       businessName: business.businessName || '',
       category: business.category || '',
       templateId: business.templateId || '',
@@ -249,7 +249,6 @@ export class BusinessService {
     if (business.themeOptions && Object.keys(business.themeOptions).length > 0) {
       dataToSave['themeOptions'] = business.themeOptions;
     }
-    // ---- Optional Phase 3 advanced features (only when present) ----
     if (business.testimonials && business.testimonials.length > 0) {
       dataToSave['testimonials'] = business.testimonials;
     }
@@ -264,6 +263,24 @@ export class BusinessService {
     }
     if (business.announcement && business.announcement.enabled && business.announcement.text) {
       dataToSave['announcement'] = business.announcement;
+    }
+    if (business.businessHours) {
+      dataToSave['businessHours'] = business.businessHours;
+    }
+    if (business.seoTitle) {
+      dataToSave['seoTitle'] = business.seoTitle;
+    }
+    if (business.seoDescription) {
+      dataToSave['seoDescription'] = business.seoDescription;
+    }
+    if (business.seoKeywords) {
+      dataToSave['seoKeywords'] = business.seoKeywords;
+    }
+    if (business.socialImageUrl) {
+      dataToSave['socialImageUrl'] = business.socialImageUrl;
+    }
+    if (business.faviconUrl) {
+      dataToSave['faviconUrl'] = business.faviconUrl;
     }
 
     try {
@@ -288,15 +305,23 @@ export class BusinessService {
     const db = await this.getDb();
     const docRef = doc(db, this.collectionName, id);
 
+    const snapshot = await this.withTimeout(getDoc(docRef), 15000, 'updateBusiness.read');
+    if (!snapshot.exists()) {
+      throw new Error('Business not found');
+    }
+
+    const businessData = snapshot.data() as Business;
+
+    if (!this.isAdmin() && businessData.ownerId !== this.getCurrentUserId()) {
+      throw new Error('You do not have permission to update this business');
+    }
+
     const cleanData: DocumentData = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined && key !== 'id') {
+      if (value !== undefined && key !== 'id' && key !== 'ownerId') {
         cleanData[key] = value;
       }
     }
-    // Publishing foundation: when a business transitions to 'published' and
-    // has no publish date yet, stamp it (covers every publish path — builder
-    // save, dashboard toggle, API callers). Kept on unpublish as history.
     if (cleanData['status'] === 'published' && cleanData['publishedAt'] === undefined) {
       try {
         const existing = await this.withTimeout(
@@ -329,6 +354,18 @@ export class BusinessService {
   async deleteBusiness(id: string): Promise<void> {
     const db = await this.getDb();
     const docRef = doc(db, this.collectionName, id);
+
+    const snapshot = await this.withTimeout(getDoc(docRef), 15000, 'deleteBusiness.read');
+    if (!snapshot.exists()) {
+      throw new Error('Business not found');
+    }
+
+    const businessData = snapshot.data() as Business;
+
+    if (!this.isAdmin() && businessData.ownerId !== this.getCurrentUserId()) {
+      throw new Error('You do not have permission to delete this business');
+    }
+
     await this.withTimeout(deleteDoc(docRef), 15000, 'deleteBusiness');
   }
 
@@ -336,7 +373,8 @@ export class BusinessService {
     const baseSlug = this.generateSlug(business.businessName);
     const slug = await this.generateUniqueSlug(baseSlug);
 
-    const duplicateData: Omit<Business, 'id'> = {
+    const duplicateData = {
+      ownerId: this.getCurrentUserId(),
       businessName: business.businessName,
       category: business.category,
       templateId: business.templateId,
@@ -347,14 +385,14 @@ export class BusinessService {
       address: business.address,
       services: business.services ? [...business.services] : [],
       slug,
-      status: 'draft',
+      status: 'draft' as const,
       themeId: business.themeId,
       themeOptions: business.themeOptions
         ? { ...business.themeOptions }
         : undefined,
     };
 
-    return this.createBusiness(duplicateData as Business);
+    return this.createBusiness(duplicateData);
   }
 
   generateSlug(name: string): string {
@@ -388,12 +426,6 @@ export class BusinessService {
     return slug;
   }
 
-  // ============ CUSTOM DOMAIN METHODS ============
-
-  /**
-   * Check if a custom domain is already claimed by another business.
-   * Returns the business ID if claimed, null if available.
-   */
   async checkDomainConflict(domain: string, excludeBusinessId?: string): Promise<string | null> {
     const normalized = normalizeDomain(domain);
     if (!normalized || !isValidDomainHostname(normalized)) {
@@ -406,32 +438,26 @@ export class BusinessService {
       where('customDomain.domain', '==', normalized)
     );
     const snapshot = await this.withTimeout(getDocs(q), 15000, 'checkDomainConflict');
-    
+
     if (snapshot.empty) return null;
-    
+
     const existingBusiness = snapshot.docs[0];
     if (excludeBusinessId && existingBusiness.id === excludeBusinessId) return null;
-    
+
     return existingBusiness.id;
   }
 
-  /**
-   * Connect a custom domain to a business.
-   * Validates domain, checks for conflicts, and generates verification token.
-   */
   async connectCustomDomain(businessId: string, domain: string): Promise<CustomDomainConfig> {
     const normalized = normalizeDomain(domain);
     if (!normalized || !isValidDomainHostname(normalized)) {
       throw new Error('Invalid domain format. Please enter a valid hostname (e.g., example.com).');
     }
 
-    // Check for conflicts with other businesses
     const conflictId = await this.checkDomainConflict(normalized, businessId);
     if (conflictId) {
       throw new Error('This domain is already connected to another business.');
     }
 
-    // Generate verification token
     const verificationToken = generateVerificationToken();
     const now = Timestamp.now();
 
@@ -449,10 +475,6 @@ export class BusinessService {
     return customDomainConfig;
   }
 
-  /**
-   * Verify a custom domain by calling the server-side Cloud Function.
-   * The function performs secure DNS TXT record verification.
-   */
   async verifyCustomDomain(businessId: string): Promise<CustomDomainConfig> {
     const functions = await this.getFunctionsInstance();
     const verifyFn = httpsCallable<{ businessId: string; domain: string }, { success: boolean; status?: string; error?: string; errorCode?: string }>(
@@ -460,7 +482,6 @@ export class BusinessService {
       'verifyCustomDomainFn'
     );
 
-    // Get the business first to extract the domain
     const business = await this.getBusinessById(businessId);
     if (!business) {
       throw new Error('Business not found');
@@ -484,19 +505,16 @@ export class BusinessService {
       throw new Error('Invalid domain configuration');
     }
 
-    // Call the Cloud Function
     const result = await verifyFn({ businessId, domain });
 
     const data = result.data;
     if (!data.success) {
-      // Handle specific error codes
       if (data.errorCode === 'verification-record-not-found') {
         throw new Error(data.error || 'We couldn\'t find the verification record yet. DNS changes can take time to propagate.');
       }
       throw new Error(data.error || 'Verification failed. Please try again.');
     }
 
-    // Refresh business data to get updated customDomain
     const updatedBusiness = await this.getBusinessById(businessId);
     if (!updatedBusiness || !updatedBusiness.customDomain) {
       throw new Error('Failed to retrieve updated business data');
@@ -505,11 +523,6 @@ export class BusinessService {
     return updatedBusiness.customDomain;
   }
 
-  /**
-   * Ask the server to probe a verified custom domain over HTTPS and mark it
-   * 'live' when the application demonstrably serves the business' published
-   * demo on that domain. See the checkCustomDomainLiveFn Cloud Function.
-   */
   async checkCustomDomainLive(businessId: string): Promise<{ live: boolean; status?: string; message?: string }> {
     const functions = await this.getFunctionsInstance();
     const checkFn = httpsCallable<
@@ -521,10 +534,6 @@ export class BusinessService {
     return result.data;
   }
 
-  /**
-   * Disconnect a custom domain from a business.
-   * Sets status to 'disabled' and clears verification token.
-   */
   async disconnectCustomDomain(businessId: string): Promise<void> {
     const business = await this.getBusinessById(businessId);
     if (!business) {
@@ -533,7 +542,7 @@ export class BusinessService {
 
     const customDomain = business.customDomain;
     if (!customDomain) {
-      return; // Already disconnected
+      return;
     }
 
     const disabledConfig: CustomDomainConfig = {
@@ -548,10 +557,6 @@ export class BusinessService {
     });
   }
 
-  /**
-   * Get the canonical public URL for a business.
-   * Uses custom domain if verified, otherwise falls back to platform demo URL.
-   */
   getCanonicalUrl(business: Business, platformOrigin: string): string {
     if (
       business.customDomain?.status === 'verified' ||
