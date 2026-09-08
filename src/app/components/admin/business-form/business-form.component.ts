@@ -2429,6 +2429,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
       this.fallbacks[normalizeCategoryKey(categoryRaw)] ?? this.genericFallback;
 
     const business: Business = {
+      ownerId: '',
       businessName: value.businessName?.trim() || 'Your Business Name',
       category: categoryRaw,
       templateId,
