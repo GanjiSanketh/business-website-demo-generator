@@ -1,9 +1,9 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SubscriptionService } from '../../../services/subscription.service';
 import { UserService } from '../../../services/user.service';
-import { PlanId, PlanDefinition } from '../../../models/user.model';
+import { PlanId, PlanDefinition, PLAN_LIMITS } from '../../../models/user.model';
 
 interface FeatureEntry {
   key: keyof ReturnType<SubscriptionService['currentPlanFeatures']>;
@@ -24,7 +24,7 @@ interface PlanFeatureEntry {
   templateUrl: './billing.component.html',
   styleUrl: './billing.component.css',
 })
-export class BillingComponent {
+export class BillingComponent implements OnInit {
   subscriptionService = inject(SubscriptionService);
   userService = inject(UserService);
 
@@ -33,8 +33,30 @@ export class BillingComponent {
   currentPlanLimits = computed(() => this.subscriptionService.currentPlanLimits());
   currentPlanFeatures = computed(() => this.subscriptionService.currentPlanFeatures());
   isAdmin = computed(() => this.userService.isAdmin());
+  profile = computed(() => this.userService.profile());
 
   plans = computed(() => this.subscriptionService.getAllPlans());
+
+  /** Real usage counts from Firestore. */
+  businessCount = computed(() => this.subscriptionService.getBusinessCount());
+  publishedCount = computed(() => this.subscriptionService.getPublishedBusinessCount());
+  customDomainCount = computed(() => this.subscriptionService.getCustomDomainCount());
+
+  /** Subscription status display. */
+  subscriptionStatus = computed(() => {
+    const status = this.profile()?.subscriptionStatus;
+    if (!status) return 'Active';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  });
+
+  isSubscriptionActive = computed(() => {
+    const status = this.profile()?.subscriptionStatus;
+    return status === 'active' || status === 'trialing';
+  });
+
+  checkoutLoading = signal(false);
+  checkoutError = signal('');
+  portalLoading = signal(false);
 
   readonly featureEntries: FeatureEntry[] = [
     { key: 'premiumTemplates', label: 'Premium Templates', enabled: false },
@@ -64,6 +86,13 @@ export class BillingComponent {
     ];
   }
 
+  ngOnInit(): void {
+    // Load actual counts if not already loaded
+    if (this.businessCount() === 0 && this.publishedCount() === 0) {
+      this.subscriptionService.loadCounts();
+    }
+  }
+
   getPlanIcon(planId: PlanId): string {
     switch (planId) {
       case 'free': return 'bi-shield';
@@ -83,18 +112,69 @@ export class BillingComponent {
 
   canUpgradeTo(planId: PlanId): boolean {
     if (this.isAdmin()) return true;
-    const currentIndex = ['free', 'pro', 'business'].indexOf(this.currentPlan());
-    const targetIndex = ['free', 'pro', 'business'].indexOf(planId);
+    const hierarchy: PlanId[] = ['free', 'pro', 'business'];
+    const currentIndex = hierarchy.indexOf(this.currentPlan());
+    const targetIndex = hierarchy.indexOf(planId);
     return targetIndex > currentIndex;
   }
 
-  onUpgrade(planId: PlanId): void {
+  getRemainingBusinesses(): number | null {
+    return this.subscriptionService.getRemainingBusinessCount();
+  }
+
+  getRemainingPublished(): number | null {
+    return this.subscriptionService.getRemainingPublishedBusinessCount();
+  }
+
+  getRemainingDomains(): number | null {
+    return this.subscriptionService.getRemainingCustomDomains();
+  }
+
+  async onUpgrade(planId: PlanId): Promise<void> {
     if (this.isCurrentPlan(planId)) return;
-    alert(`Payment integration coming in Phase 5 Part 2. This would redirect to Stripe checkout for ${planId} plan.`);
+    if (this.isAdmin()) {
+      alert('Admin accounts have unlimited access to all plans.');
+      return;
+    }
+
+    this.checkoutLoading.set(true);
+    this.checkoutError.set('');
+
+    try {
+      const url = await this.subscriptionService.startCheckout(planId);
+      window.location.href = url;
+    } catch (err: any) {
+      const message = err?.message || 'Failed to start checkout. Please try again.';
+      // Show user-friendly message for unimplemented Stripe
+      if (message.includes('unimplemented') || message.includes('not yet configured')) {
+        this.checkoutError.set('Stripe payment integration will be available in Phase 5 Part 2B. For now, you are on the Free plan with unlimited admin access.');
+      } else {
+        this.checkoutError.set(message);
+      }
+    } finally {
+      this.checkoutLoading.set(false);
+    }
+  }
+
+  async openPortal(): Promise<void> {
+    this.portalLoading.set(true);
+    try {
+      const url = await this.subscriptionService.openCustomerPortal();
+      window.location.href = url;
+    } catch (err: any) {
+      const message = err?.message || 'Failed to open billing portal.';
+      if (message.includes('unimplemented') || message.includes('not yet configured')) {
+        alert('Stripe billing portal will be available in Phase 5 Part 2B.');
+      } else {
+        alert(message);
+      }
+    } finally {
+      this.portalLoading.set(false);
+    }
   }
 
   onDowngrade(planId: PlanId): void {
     if (this.isCurrentPlan(planId)) return;
-    alert(`Downgrade logic coming in Phase 5 Part 2.`);
+    alert('Downgrade logic will be available in Phase 5 Part 2B.');
   }
 }

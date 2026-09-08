@@ -87,8 +87,11 @@ export class DashboardComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await this.loadBusinesses();
-    await this.subscriptionService.loadUsage();
+    await Promise.all([
+      this.loadBusinesses(),
+      this.subscriptionService.loadUsage(),
+      this.subscriptionService.loadCounts(),
+    ]);
   }
 
   showToast(message: string): void {

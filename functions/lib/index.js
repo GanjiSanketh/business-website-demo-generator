@@ -33,17 +33,23 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ssr = exports.checkCustomDomainLiveFn = exports.verifyCustomDomainFn = void 0;
+exports.ssr = exports.getUsageFn = exports.checkPlanLimitFn = exports.getSubscriptionStatusFn = exports.createCheckoutSessionFn = exports.checkCustomDomainLiveFn = exports.verifyCustomDomainFn = void 0;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const domain_verification_1 = require("./domain-verification");
 const domain_liveness_1 = require("./domain-liveness");
+const checkout_1 = require("./checkout");
+const subscription_1 = require("./subscription");
+const enforcement_1 = require("./enforcement");
 // The Angular SSR bundle is loaded through a CommonJS bridge (functions/src/
 // ssr.cjs → functions/lib/ssr.cjs, copied by scripts/copy-ssr.js) because the
 // bundle is ESM while this package compiles to CommonJS.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { ssrHandler } = require('./ssr.cjs');
 admin.initializeApp();
+// ---------------------------------------------------------------------------
+// Domain management
+// ---------------------------------------------------------------------------
 /**
  * Callable function to verify a custom domain by checking DNS TXT records.
  *
@@ -57,6 +63,38 @@ exports.verifyCustomDomainFn = functions.https.onCall(domain_verification_1.veri
  * published demo on that domain.
  */
 exports.checkCustomDomainLiveFn = functions.https.onCall(domain_liveness_1.checkCustomDomainLive);
+// ---------------------------------------------------------------------------
+// Subscription & Billing (Phase 5 Part 2A — architecture foundation)
+// ---------------------------------------------------------------------------
+/**
+ * Creates a Stripe Checkout session for upgrading to a paid plan.
+ * Returns a URL that the user is redirected to for payment.
+ *
+ * Currently returns 'unimplemented' until Stripe SDK is added in Part 2B.
+ */
+exports.createCheckoutSessionFn = functions.https.onCall(checkout_1.createCheckoutSession);
+/**
+ * Returns the current subscription status for the authenticated user.
+ * Admins can query any user's status.
+ */
+exports.getSubscriptionStatusFn = functions.https.onCall(subscription_1.getSubscriptionStatus);
+/**
+ * Checks whether the user can perform a specific operation given their plan limits.
+ * Returns enforcement result without modifying any data.
+ */
+exports.checkPlanLimitFn = functions.https.onCall(enforcement_1.checkPlanLimit);
+/**
+ * Returns the current usage summary (business count, published count, etc.)
+ * for the authenticated user. Used by billing and dashboard pages.
+ */
+exports.getUsageFn = functions.https.onCall(enforcement_1.getUsage);
+// ---------------------------------------------------------------------------
+// Stripe Webhooks (Phase 5 Part 2B — Stripe integration)
+// ---------------------------------------------------------------------------
+// export const stripeWebhook = functions.https.onRequest(handleStripeWebhook);
+// ---------------------------------------------------------------------------
+// SSR
+// ---------------------------------------------------------------------------
 /**
  * Firebase Hosting → Cloud Functions v2 rewrite target for the Angular SSR
  * application (see the hosting.rewrites block in firebase.json).

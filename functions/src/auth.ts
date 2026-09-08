@@ -106,5 +106,5 @@ export async function requireBusinessOwner(
     );
   }
 
-  return { uid, email: auth.token.email };
+  return { uid, email: auth?.token?.email };
 }

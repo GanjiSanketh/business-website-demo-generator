@@ -40,9 +40,6 @@ const promises_1 = require("dns/promises");
 const auth_1 = require("./auth");
 const VERIFICATION_TXT_HOST = '_demosite-verification';
 const VERIFICATION_TXT_PREFIX = 'demosite-verification=';
-/**
- * Normalizes a domain to lowercase hostname without protocol/trailing slash.
- */
 function normalizeDomain(input) {
     if (!input || typeof input !== 'string')
         return null;
@@ -75,9 +72,6 @@ function normalizeDomain(input) {
     domain = domain.replace(/\.$/, '').toLowerCase();
     return domain || null;
 }
-/**
- * Validates domain hostname per RFC 1123/952.
- */
 function isValidDomainHostname(domain) {
     if (!domain || typeof domain !== 'string')
         return false;
@@ -117,16 +111,11 @@ function isValidDomainHostname(domain) {
         return false;
     return true;
 }
-/**
- * Queries DNS for TXT records at the verification subdomain.
- * Returns the matching verification token if found, null otherwise.
- */
 async function queryVerificationTxtRecord(domain, expectedToken) {
     const txtHost = `${VERIFICATION_TXT_HOST}.${domain}`;
     const expectedValue = `${VERIFICATION_TXT_PREFIX}${expectedToken}`;
     try {
         const records = await (0, promises_1.resolveTxt)(txtHost);
-        // resolveTxt returns string[][] - each inner array is the chunks of one TXT record
         for (const record of records) {
             const fullValue = record.join('');
             if (fullValue === expectedValue) {
@@ -136,21 +125,13 @@ async function queryVerificationTxtRecord(domain, expectedToken) {
         return null;
     }
     catch (err) {
-        // DNS lookup failed - could be NXDOMAIN, timeout, SERVFAIL, etc.
         const code = err?.code;
         if (code === 'ENOTFOUND' || code === 'ENODATA') {
-            // No TXT record found - this is expected during propagation
             return null;
         }
-        // Other DNS errors - rethrow to be handled by caller
         throw new Error(`DNS lookup failed: ${err?.message || 'Unknown error'}`);
     }
 }
-/**
- * Checks if another business already has this domain serving (verified or
- * live). A domain that is already live for one business must never be
- * handed to another.
- */
 async function checkVerifiedDomainConflict(db, domain, excludeBusinessId) {
     const snapshot = await db
         .collection('businesses')
@@ -163,62 +144,50 @@ async function checkVerifiedDomainConflict(db, domain, excludeBusinessId) {
     const existingDoc = snapshot.docs[0];
     return existingDoc.id !== excludeBusinessId;
 }
-/**
- * Main callable function handler for custom domain verification.
- * Uses v2 CallableRequest format: handler(request) where request.data has the typed payload.
- */
 async function verifyCustomDomain(request) {
-    // 1. Check authentication and authorization
-    const { uid } = await (0, auth_1.checkAuthorization)(request.auth);
-    // 2. Validate input
+    const { uid } = await (0, auth_1.requireAuth)(request.auth);
     const { businessId, domain } = request.data;
     if (!businessId || !domain) {
         throw new functions.https.HttpsError('invalid-argument', 'businessId and domain are required');
     }
-    // 3. Normalize domain
     const normalizedDomain = normalizeDomain(domain);
     if (!normalizedDomain || !isValidDomainHostname(normalizedDomain)) {
         throw new functions.https.HttpsError('invalid-argument', 'Invalid domain format');
     }
     const db = admin.firestore();
-    // 4. Load business document
     const businessRef = db.collection('businesses').doc(businessId);
     const businessSnap = await businessRef.get();
     if (!businessSnap.exists) {
         throw new functions.https.HttpsError('not-found', 'Business not found');
     }
     const businessData = businessSnap.data();
+    // Check ownership (admin or owner)
+    const userDoc = await db.collection('users').doc(uid).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.role === 'admin';
+    if (!isAdmin && businessData.ownerId !== uid) {
+        throw new functions.https.HttpsError('permission-denied', 'You do not own this business');
+    }
     const customDomain = businessData.customDomain;
-    // 5. Verify business ownership (the authenticated user must own this business)
-    // In this app, business ownership is determined by the ALLOWED_EMAILS list
-    // Since we already checked authorization against ALLOWED_EMAILS, we trust this.
-    // If multi-user support is added later, add business.ownerUid check here.
-    // 6. Check custom domain configuration exists
     if (!customDomain) {
         throw new functions.https.HttpsError('failed-precondition', 'No custom domain configured for this business');
     }
-    // 7. Verify domain matches
     if (customDomain.domain !== normalizedDomain) {
         throw new functions.https.HttpsError('failed-precondition', 'Domain does not match configured domain');
     }
-    // 8. Verify status is pending
     if (customDomain.status !== 'pending') {
         if (customDomain.status === 'verified' || customDomain.status === 'live') {
             throw new functions.https.HttpsError('failed-precondition', 'Domain is already verified');
         }
         throw new functions.https.HttpsError('failed-precondition', 'Domain is not in pending state');
     }
-    // 9. Check verification token exists
     const verificationToken = customDomain.verificationToken;
     if (!verificationToken) {
         throw new functions.https.HttpsError('failed-precondition', 'No verification token available. Reconnect the domain first.');
     }
-    // 10. Check for verified domain conflict with other businesses
     const hasConflict = await checkVerifiedDomainConflict(db, normalizedDomain, businessId);
     if (hasConflict) {
         throw new functions.https.HttpsError('already-exists', 'This domain is already verified for another business');
     }
-    // 11. Query DNS for verification TXT record
     let txtRecordFound = false;
     let dnsError = null;
     try {
@@ -229,11 +198,9 @@ async function verifyCustomDomain(request) {
         dnsError = err instanceof Error ? err.message : 'DNS lookup failed';
         functions.logger.error('DNS verification error', { businessId, domain: normalizedDomain, error: dnsError });
     }
-    // 12. If DNS lookup failed with an error (not just missing record), return error
     if (dnsError) {
         throw new functions.https.HttpsError('unavailable', 'Unable to check DNS right now. Please try again later.');
     }
-    // 13. If TXT record not found, return pending status
     if (!txtRecordFound) {
         return {
             success: false,
@@ -242,7 +209,6 @@ async function verifyCustomDomain(request) {
             errorCode: 'verification-record-not-found',
         };
     }
-    // 14. TXT record found - update business document
     const now = admin.firestore.FieldValue.serverTimestamp();
     await businessRef.update({
         'customDomain.status': 'verified',

@@ -271,6 +271,78 @@
   font-weight: 600;
 }
 
+/* ============ SUBSCRIPTION STATUS ============ */
+.subscription-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.active {
+  background: var(--admin-success);
+  box-shadow: 0 0 6px var(--admin-success);
+}
+
+.status-dot.inactive {
+  background: var(--admin-danger);
+}
+
+.status-text {
+  color: var(--color-text-secondary);
+}
+
+/* ============ CHECKOUT ERROR ============ */
+.checkout-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--admin-warning-bg);
+  border: 1px solid color-mix(in srgb, var(--admin-warning) 35%, transparent);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xl);
+  font-size: 0.85rem;
+  color: var(--admin-warning);
+  line-height: 1.5;
+}
+
+.checkout-error i {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ============ PLAN ACTIONS ROW ============ */
+.plan-actions-row {
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-lg);
+}
+
+/* ============ BUTTON SPINNER ============ */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
   .plan-header {
     flex-direction: column;

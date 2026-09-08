@@ -29,6 +29,7 @@ import { ActivatedRoute, Router, RouterModule, CanDeactivate } from '@angular/ro
 import { BusinessService } from '../../../services/business.service';
 import { StorageService } from '../../../services/storage.service';
 import { ScreenshotService } from '../../../services/screenshot.service';
+import { SubscriptionService } from '../../../services/subscription.service';
 import {
   Business,
   ServiceItem,
@@ -296,6 +297,7 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
     private businessService: BusinessService,
     private storageService: StorageService,
     private screenshotService: ScreenshotService,
+    private subscriptionService: SubscriptionService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
@@ -1506,6 +1508,29 @@ export class BusinessFormComponent implements OnInit, OnDestroy {
         'Announcement: when a link label is set, the link URL must be valid (e.g. https://…).'
       );
       return;
+    }
+
+    // Plan limit enforcement (client-side check — server-side enforcement
+    // happens via Cloud Functions in Part 2B)
+    if (!this.isEditMode() && !this.subscriptionService.canCreateBusiness()) {
+      const remaining = this.subscriptionService.getRemainingBusinessCount();
+      const planName = this.subscriptionService.currentPlanMetadata().name;
+      if (remaining !== null && remaining <= 0) {
+        this.errorMessage.set(
+          `Your ${planName} plan allows ${this.subscriptionService.formatLimit(this.subscriptionService.currentPlanLimits().maxBusinesses)} business(es). Upgrade your plan to create more.`
+        );
+        return;
+      }
+    }
+    if (formStatus === 'published' && !this.isEditMode() && !this.subscriptionService.canPublishBusiness()) {
+      const remaining = this.subscriptionService.getRemainingPublishedBusinessCount();
+      const planName = this.subscriptionService.currentPlanMetadata().name;
+      if (remaining !== null && remaining <= 0) {
+        this.errorMessage.set(
+          `Your ${planName} plan allows ${this.subscriptionService.formatLimit(this.subscriptionService.currentPlanLimits().maxPublishedBusinesses)} published business(es). Upgrade your plan to publish more.`
+        );
+        return;
+      }
     }
 
     this.formPristine = true;

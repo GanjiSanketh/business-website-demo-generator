@@ -34,13 +34,15 @@ service cloud.firestore {
       allow create: if isOwner(userId);
 
       // Users can update safe fields only (displayName, photoURL)
-      // Cannot update: role, plan, subscription, subscriptionStatus, createdAt
+      // Cannot update: role, plan, subscription, subscriptionStatus, createdAt, stripeCustomerId
+      // stripeCustomerId is managed exclusively by Cloud Functions with Admin SDK
       allow update: if isOwner(userId) &&
         !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('plan' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('subscription' in request.resource.data.diff(resource.data).affectedKeys()) &&
         !('subscriptionStatus' in request.resource.data.diff(resource.data).affectedKeys()) &&
-        !('createdAt' in request.resource.data.diff(resource.data).affectedKeys());
+        !('createdAt' in request.resource.data.diff(resource.data).affectedKeys()) &&
+        !('stripeCustomerId' in request.resource.data.diff(resource.data).affectedKeys());
 
       // Only admins can delete users
       allow delete: if isAdmin();

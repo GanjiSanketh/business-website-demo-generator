@@ -11,142 +11,179 @@
       <i class="bi bi-person-badge"></i>
       <span>You are an admin. All plan limits are bypassed.</span>
     </div>
-  } @else {
-    <!-- Current Plan -->
-    <section class="current-plan-section">
-      <h2>Current Plan</h2>
-      <div class="plan-card current">
-        <div class="plan-header">
-          <div class="plan-icon">
-            <i class="bi" [ngClass]="getPlanIcon(currentPlan())"></i>
-          </div>
-          <div class="plan-info">
-            <h3>{{ currentPlanMetadata().name }}</h3>
-            <p class="plan-price">{{ formatPrice(currentPlanMetadata().price) }}</p>
-            <p class="plan-description">{{ currentPlanMetadata().description }}</p>
-          </div>
-        </div>
-
-        <div class="plan-limits">
-          <h4>Current Limits</h4>
-          <div class="limits-grid">
-            <div class="limit-item">
-              <span class="limit-label">Businesses</span>
-              <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}</span>
-            </div>
-            <div class="limit-item">
-              <span class="limit-label">Published Businesses</span>
-              <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}</span>
-            </div>
-            <div class="limit-item">
-              <span class="limit-label">Custom Domains</span>
-              <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}</span>
-            </div>
-            <div class="limit-item">
-              <span class="limit-label">AI Generations/Month</span>
-              <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().aiGenerationsPerMonth) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="plan-features">
-          <h4>Included Features</h4>
-          <ul class="features-list">
-            @for (feature of featureEntries; track feature.key) {
-              <li>
-                <i class="bi" [ngClass]="feature.enabled ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-muted'"></i>
-                <span>{{ feature.label }}</span>
-              </li>
-            }
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- Available Plans -->
-    <section class="available-plans-section">
-      <h2>Available Plans</h2>
-      <div class="plans-grid">
-        @for (plan of plans(); track plan.id) {
-          <div class="plan-card" [class.current]="isCurrentPlan(plan.id)">
-            <div class="plan-header">
-              <div class="plan-icon">
-                <i class="bi" [ngClass]="getPlanIcon(plan.id)"></i>
-              </div>
-              <div class="plan-info">
-                <h3>{{ plan.name }}</h3>
-                <p class="plan-price">{{ formatPrice(plan.price) }}</p>
-                <p class="plan-description">{{ plan.description }}</p>
-              </div>
-              @if (isCurrentPlan(plan.id)) {
-                <span class="current-badge">Current</span>
-              }
-            </div>
-
-            <div class="plan-limits">
-              <div class="limits-grid">
-                <div class="limit-item">
-                  <span class="limit-label">Businesses</span>
-                  <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.maxBusinesses) }}</span>
-                </div>
-                <div class="limit-item">
-                  <span class="limit-label">Published</span>
-                  <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.maxPublishedBusinesses) }}</span>
-                </div>
-                <div class="limit-item">
-                  <span class="limit-label">Custom Domains</span>
-                  <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.customDomains) }}</span>
-                </div>
-                <div class="limit-item">
-                  <span class="limit-label">AI Generations/Month</span>
-                  <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.aiGenerationsPerMonth) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="plan-features">
-              <ul class="features-list">
-                @for (feature of planEntries(plan); track feature.key) {
-                  <li>
-                    <i class="bi" [ngClass]="feature.enabled ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-muted'"></i>
-                    <span>{{ feature.label }}</span>
-                  </li>
-                }
-              </ul>
-            </div>
-
-            <div class="plan-actions">
-              @if (isCurrentPlan(plan.id)) {
-                <button class="btn-secondary" disabled>
-                  <i class="bi bi-check"></i>
-                  Current Plan
-                </button>
-              } @else if (canUpgradeTo(plan.id)) {
-                <button class="btn-primary" (click)="onUpgrade(plan.id)">
-                  <i class="bi bi-arrow-up"></i>
-                  Upgrade
-                </button>
-              } @else {
-                <button class="btn-secondary" (click)="onDowngrade(plan.id)">
-                  <i class="bi bi-arrow-down"></i>
-                  Downgrade
-                </button>
-              }
-            </div>
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Payment Integration Notice -->
-    <section class="payment-notice">
-      <div class="notice-card">
-        <i class="bi bi-info-circle"></i>
-        <div>
-          <h3>Payment Integration Coming Soon</h3>
-          <p>Stripe payment integration will be implemented in <strong>Phase 5 Part 2</strong>. Upgrade/downgrade buttons currently show a preview of the functionality.</p>
-        </div>
-      </div>
-    </section>
   }
+
+  <!-- Current Plan -->
+  <section class="current-plan-section">
+    <h2>Current Plan</h2>
+    <div class="plan-card current">
+      <div class="plan-header">
+        <div class="plan-icon">
+          <i class="bi" [ngClass]="getPlanIcon(currentPlan())"></i>
+        </div>
+        <div class="plan-info">
+          <h3>{{ currentPlanMetadata().name }}</h3>
+          <p class="plan-price">{{ formatPrice(currentPlanMetadata().price) }}</p>
+          <p class="plan-description">{{ currentPlanMetadata().description }}</p>
+          @if (!isAdmin()) {
+            <div class="subscription-status">
+              <span class="status-dot" [class.active]="isSubscriptionActive()" [class.inactive]="!isSubscriptionActive()"></span>
+              <span class="status-text">{{ subscriptionStatus() }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Usage vs Limits (real data) -->
+      <div class="plan-limits">
+        <h4>Usage</h4>
+        <div class="limits-grid">
+          <div class="limit-item">
+            <span class="limit-label">Businesses</span>
+            <span class="limit-value">
+              {{ businessCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxBusinesses) }}
+            </span>
+          </div>
+          <div class="limit-item">
+            <span class="limit-label">Published</span>
+            <span class="limit-value">
+              {{ publishedCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().maxPublishedBusinesses) }}
+            </span>
+          </div>
+          <div class="limit-item">
+            <span class="limit-label">Custom Domains</span>
+            <span class="limit-value">
+              {{ customDomainCount() }} / {{ subscriptionService.formatLimit(currentPlanLimits().customDomains) }}
+            </span>
+          </div>
+          <div class="limit-item">
+            <span class="limit-label">AI Generations/Month</span>
+            <span class="limit-value">{{ subscriptionService.formatLimit(currentPlanLimits().aiGenerationsPerMonth) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-features">
+        <h4>Included Features</h4>
+        <ul class="features-list">
+          @for (feature of currentFeatures(); track feature.key) {
+            <li>
+              <i class="bi" [ngClass]="feature.enabled ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-muted'"></i>
+              <span>{{ feature.label }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+
+      @if (!isAdmin() && profile()?.stripeCustomerId) {
+        <div class="plan-actions-row">
+          <button class="btn-secondary" (click)="openPortal()" [disabled]="portalLoading()">
+            @if (portalLoading()) {
+              <span class="btn-spinner"></span>
+            } @else {
+              <i class="bi bi-gear"></i>
+            }
+            Manage Subscription
+          </button>
+        </div>
+      }
+    </div>
+  </section>
+
+  @if (checkoutError()) {
+    <div class="checkout-error">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span>{{ checkoutError() }}</span>
+    </div>
+  }
+
+  <!-- Available Plans -->
+  <section class="available-plans-section">
+    <h2>Available Plans</h2>
+    <div class="plans-grid">
+      @for (plan of plans(); track plan.id) {
+        <div class="plan-card" [class.current]="isCurrentPlan(plan.id)">
+          <div class="plan-header">
+            <div class="plan-icon">
+              <i class="bi" [ngClass]="getPlanIcon(plan.id)"></i>
+            </div>
+            <div class="plan-info">
+              <h3>{{ plan.name }}</h3>
+              <p class="plan-price">{{ formatPrice(plan.price) }}</p>
+              <p class="plan-description">{{ plan.description }}</p>
+            </div>
+            @if (isCurrentPlan(plan.id)) {
+              <span class="current-badge">Current</span>
+            }
+          </div>
+
+          <div class="plan-limits">
+            <div class="limits-grid">
+              <div class="limit-item">
+                <span class="limit-label">Businesses</span>
+                <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.maxBusinesses) }}</span>
+              </div>
+              <div class="limit-item">
+                <span class="limit-label">Published</span>
+                <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.maxPublishedBusinesses) }}</span>
+              </div>
+              <div class="limit-item">
+                <span class="limit-label">Custom Domains</span>
+                <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.customDomains) }}</span>
+              </div>
+              <div class="limit-item">
+                <span class="limit-label">AI Generations/Month</span>
+                <span class="limit-value">{{ subscriptionService.formatLimit(plan.limits.aiGenerationsPerMonth) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-features">
+            <ul class="features-list">
+              @for (feature of planEntries(plan); track feature.key) {
+                <li>
+                  <i class="bi" [ngClass]="feature.enabled ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-muted'"></i>
+                  <span>{{ feature.label }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="plan-actions">
+            @if (isCurrentPlan(plan.id)) {
+              <button class="btn-secondary" disabled>
+                <i class="bi bi-check"></i>
+                Current Plan
+              </button>
+            } @else if (canUpgradeTo(plan.id)) {
+              <button class="btn-primary" (click)="onUpgrade(plan.id)" [disabled]="checkoutLoading()">
+                @if (checkoutLoading()) {
+                  <span class="btn-spinner"></span>
+                } @else {
+                  <i class="bi bi-arrow-up"></i>
+                }
+                Upgrade
+              </button>
+            } @else {
+              <button class="btn-secondary" (click)="onDowngrade(plan.id)">
+                <i class="bi bi-arrow-down"></i>
+                Downgrade
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Payment Integration Notice -->
+  <section class="payment-notice">
+    <div class="notice-card">
+      <i class="bi bi-info-circle"></i>
+      <div>
+        <h3>Payment Integration</h3>
+        <p>Stripe checkout integration is being prepared in <strong>Phase 5 Part 2A</strong>. Full payment processing will be available in <strong>Phase 5 Part 2B</strong>.</p>
+      </div>
+    </div>
+  </section>
 </div>

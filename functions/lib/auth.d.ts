@@ -1,12 +1,9 @@
 /**
  * Shared authorization for callable Cloud Functions.
  *
- * The application's authorization model is an email allowlist (see
- * src/app/services/auth.service.ts on the client). Every callable function
- * that touches custom domains or publishing must go through this check so
- * the allowlist stays in a single place.
+ * The application's authorization model uses Firestore user profiles.
+ * Admin users have role == 'admin' in their user profile.
  */
-export declare const ALLOWED_EMAILS: string[];
 export type CallableRequest<T> = {
     data: T;
     auth?: {
@@ -22,11 +19,28 @@ export type CallableRequest<T> = {
     acceptsStreaming: boolean;
 };
 /**
- * Validates that the caller is authenticated AND on the allowlist.
+ * Validates that the caller is authenticated.
  * Throws an HttpsError otherwise.
  */
-export declare function checkAuthorization(auth: CallableRequest<any>['auth']): Promise<{
+export declare function requireAuth(auth: CallableRequest<any>['auth']): Promise<{
     uid: string;
-    email: string;
+    email?: string;
+}>;
+/**
+ * Validates that the caller is authenticated AND has admin role.
+ * Uses Admin SDK to fetch user profile from Firestore.
+ * Throws an HttpsError otherwise.
+ */
+export declare function requireAdmin(auth: CallableRequest<any>['auth']): Promise<{
+    uid: string;
+    email?: string;
+}>;
+/**
+ * Validates that the caller owns the specified business.
+ * Throws an HttpsError if not owner or admin.
+ */
+export declare function requireBusinessOwner(auth: CallableRequest<any>['auth'], businessId: string): Promise<{
+    uid: string;
+    email?: string;
 }>;
 //# sourceMappingURL=auth.d.ts.map

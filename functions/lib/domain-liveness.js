@@ -40,14 +40,7 @@ const https = __importStar(require("node:https"));
 const promises_1 = require("node:dns/promises");
 const node_net_1 = require("node:net");
 const auth_1 = require("./auth");
-/**
- * Marker every page served by this application contains in <head>
- * (src/index.html). A custom domain is only considered LIVE when an HTTPS
- * GET to its root returns this application's own markup — ownership
- * verification (TXT) alone is never enough.
- */
 const APP_MARKER = 'name="application-name" content="Business Demo Generator"';
-/** RFC 1918 / loopback / link-local / CGNAT / IPv6-private ranges. */
 function isPrivateIp(address) {
     if ((0, node_net_1.isIP)(address) === 4) {
         const parts = address.split('.').map(Number);
@@ -58,13 +51,13 @@ function isPrivateIp(address) {
         if (parts[0] === 0)
             return true;
         if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
-            return true; // CGNAT
+            return true;
         if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
             return true;
         if (parts[0] === 192 && parts[1] === 168)
             return true;
         if (parts[0] === 169 && parts[1] === 254)
-            return true; // link-local
+            return true;
         return false;
     }
     if ((0, node_net_1.isIP)(address) === 6) {
@@ -72,9 +65,9 @@ function isPrivateIp(address) {
         if (lower === '::1')
             return true;
         if (lower.startsWith('fe80'))
-            return true; // link-local
+            return true;
         if (lower.startsWith('fc') || lower.startsWith('fd'))
-            return true; // ULA
+            return true;
         if (lower.startsWith('::ffff:127'))
             return true;
         if (lower.startsWith('::ffff:10.'))
@@ -85,15 +78,9 @@ function isPrivateIp(address) {
             return true;
         return false;
     }
-    return true; // unresolvable / unknown format — treat as unsafe
+    return true;
 }
-/**
- * Probes https://<domain>/ and reports whether this application's demo page
- * is actually being served for the business. Never trusts a bare 200: the
- * body must contain the app marker and the business' demo URL.
- */
 async function probeDomain(domain, slug, timeoutMs) {
-    // SSRF guard: only probe public addresses.
     let validatedAddress;
     let validatedFamily;
     try {
@@ -113,11 +100,6 @@ async function probeDomain(domain, slug, timeoutMs) {
     return new Promise((resolve) => {
         const req = https.get({
             hostname: domain,
-            // DNS-rebinding guard: pin the actual connection to the address
-            // validated above. The socket is tied to the checked public IP while
-            // TLS/SNI still use the real hostname (certificate validation is
-            // unchanged), so a hostile DNS flip between validation and connection
-            // cannot redirect the probe to an internal address.
             lookup: (_hostname, _options, callback) => {
                 callback(null, validatedAddress, validatedFamily);
             },
@@ -175,19 +157,8 @@ async function probeDomain(domain, slug, timeoutMs) {
         });
     });
 }
-/**
- * Checks whether a verified custom domain is actually live — i.e. an HTTPS
- * request to https://<domain>/ successfully serves the published demo of the
- * owning business.
- *
- * This is the only way a domain transitions from 'verified' (ownership
- * proven via TXT) to 'live' (the application demonstrably answers on it).
- * The transition is NOT automatic: the operator must first add the domain to
- * Firebase Hosting (console/CLI) and point the domain's DNS at Firebase
- * Hosting. This function then confirms the result end-to-end.
- */
 async function checkCustomDomainLive(request) {
-    await (0, auth_1.checkAuthorization)(request.auth);
+    const { uid } = await (0, auth_1.requireAuth)(request.auth);
     const { businessId } = request.data;
     if (!businessId) {
         throw new functions.https.HttpsError('invalid-argument', 'businessId is required');
@@ -199,6 +170,12 @@ async function checkCustomDomainLive(request) {
         throw new functions.https.HttpsError('not-found', 'Business not found');
     }
     const data = snap.data();
+    // Check ownership (admin or owner)
+    const userDoc = await db.collection('users').doc(uid).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.role === 'admin';
+    if (!isAdmin && data.ownerId !== uid) {
+        throw new functions.https.HttpsError('permission-denied', 'You do not own this business');
+    }
     const customDomain = data.customDomain;
     if (!customDomain?.domain) {
         throw new functions.https.HttpsError('failed-precondition', 'No custom domain configured for this business');

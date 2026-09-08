@@ -2,7 +2,8 @@ import { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'user' | 'admin';
 export type PlanId = 'free' | 'pro' | 'business';
-export type SubscriptionStatus = 'active' | 'trialing' | 'inactive' | 'cancelled';
+export type SubscriptionStatus = 'active' | 'trialing' | 'inactive' | 'cancelled' | 'past_due';
+export type SubscriptionInterval = 'monthly' | 'yearly';
 
 export interface UserSubscription {
   plan: PlanId;
@@ -10,6 +11,12 @@ export interface UserSubscription {
   currentPeriodStart?: Timestamp;
   currentPeriodEnd?: Timestamp;
   cancelAtPeriodEnd?: boolean;
+  /** Stripe subscription id (e.g. "sub_xxx"). Set by Cloud Functions. */
+  stripeSubscriptionId?: string;
+  /** Stripe price id (e.g. "price_xxx"). Set by Cloud Functions. */
+  stripePriceId?: string;
+  /** Billing interval. Derived from Stripe price by Cloud Functions. */
+  interval?: SubscriptionInterval;
 }
 
 export interface UserProfile {
@@ -27,6 +34,13 @@ export interface UserProfile {
   updatedAt: Timestamp;
 
   subscription?: UserSubscription;
+
+  /**
+   * Stripe customer id (e.g. "cus_xxx"). Created on first checkout.
+   * Only settable by Cloud Functions with Admin SDK — Firestore rules
+   * block client writes to this field.
+   */
+  stripeCustomerId?: string;
 }
 
 export interface PlanDefinition {
@@ -121,6 +135,10 @@ export const PLAN_METADATA: Record<PlanId, {
   name: string;
   price: number;
   description: string;
+  /** Stripe price id for monthly billing. Populated in Part 2B. */
+  stripePriceIdMonthly?: string;
+  /** Stripe price id for yearly billing. Populated in Part 2B. */
+  stripePriceIdYearly?: string;
 }> = {
   free: {
     id: 'free',
@@ -133,14 +151,37 @@ export const PLAN_METADATA: Record<PlanId, {
     name: 'Pro',
     price: 29,
     description: 'For growing businesses and freelancers',
+    // stripePriceIdMonthly: 'price_pro_monthly_xxx',   // Part 2B
+    // stripePriceIdYearly: 'price_pro_yearly_xxx',     // Part 2B
   },
   business: {
     id: 'business',
     name: 'Business',
     price: 99,
     description: 'For agencies and teams',
+    // stripePriceIdMonthly: 'price_business_monthly_xxx', // Part 2B
+    // stripePriceIdYearly: 'price_business_yearly_xxx',   // Part 2B
   },
 };
+
+/**
+ * Determine whether a plan upgrade is available from the given current plan.
+ * Returns null if the plan is already the highest or unknown.
+ */
+export function getUpgradeTarget(currentPlan: PlanId): PlanId | null {
+  const hierarchy: PlanId[] = ['free', 'pro', 'business'];
+  const currentIndex = hierarchy.indexOf(currentPlan);
+  if (currentIndex < 0 || currentIndex >= hierarchy.length - 1) return null;
+  return hierarchy[currentIndex + 1];
+}
+
+/**
+ * Check whether a plan change constitutes an upgrade (vs. downgrade or same).
+ */
+export function isPlanUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
+  const hierarchy: PlanId[] = ['free', 'pro', 'business'];
+  return hierarchy.indexOf(targetPlan) > hierarchy.indexOf(currentPlan);
+}
 
 export function isUnlimited(value: number | null): boolean {
   return value === null;

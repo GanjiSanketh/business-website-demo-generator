@@ -9,9 +9,5 @@ export interface VerifyCustomDomainResponse {
     error?: string;
     errorCode?: string;
 }
-/**
- * Main callable function handler for custom domain verification.
- * Uses v2 CallableRequest format: handler(request) where request.data has the typed payload.
- */
 export declare function verifyCustomDomain(request: CallableRequest<VerifyCustomDomainRequest>): Promise<VerifyCustomDomainResponse>;
 //# sourceMappingURL=domain-verification.d.ts.map
