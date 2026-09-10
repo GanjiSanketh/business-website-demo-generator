@@ -58,6 +58,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleRazorpayWebhook = handleRazorpayWebhook;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
+const config_1 = require("./config");
 const razorpay_types_1 = require("./razorpay-types");
 // ---------------------------------------------------------------------------
 // Stale-processing recovery
@@ -82,13 +83,13 @@ async function findUserByRazorpayCustomer(customerId) {
     return snapshot.docs[0].id;
 }
 /**
- * Resolve internal plan from Razorpay plan ID via environment variables.
+ * Resolve internal plan from Razorpay plan ID via config module.
  */
 function planFromRazorpayPlanId(razorpayPlanId) {
     const plans = ['free', 'pro', 'business'];
     for (const plan of plans) {
-        const monthlyId = process.env[`RAZORPAY_PLAN_${plan.toUpperCase()}_MONTHLY`];
-        const yearlyId = process.env[`RAZORPAY_PLAN_${plan.toUpperCase()}_YEARLY`];
+        const monthlyId = (0, config_1.getRazorpayPlanId)(plan, 'monthly');
+        const yearlyId = (0, config_1.getRazorpayPlanId)(plan, 'yearly');
         if (monthlyId === razorpayPlanId || yearlyId === razorpayPlanId) {
             return plan;
         }
@@ -99,10 +100,10 @@ function planFromRazorpayPlanId(razorpayPlanId) {
  * Resolve billing interval from Razorpay plan ID.
  */
 function resolveIntervalFromPlanId(razorpayPlanId) {
-    const proMonthly = process.env.RAZORPAY_PLAN_PRO_MONTHLY;
-    const proYearly = process.env.RAZORPAY_PLAN_PRO_YEARLY;
-    const bizMonthly = process.env.RAZORPAY_PLAN_BUSINESS_MONTHLY;
-    const bizYearly = process.env.RAZORPAY_PLAN_BUSINESS_YEARLY;
+    const proMonthly = (0, config_1.getRazorpayPlanId)('pro', 'monthly');
+    const proYearly = (0, config_1.getRazorpayPlanId)('pro', 'yearly');
+    const bizMonthly = (0, config_1.getRazorpayPlanId)('business', 'monthly');
+    const bizYearly = (0, config_1.getRazorpayPlanId)('business', 'yearly');
     if (razorpayPlanId === proMonthly || razorpayPlanId === bizMonthly)
         return 'monthly';
     if (razorpayPlanId === proYearly || razorpayPlanId === bizYearly)

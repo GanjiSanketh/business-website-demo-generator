@@ -3,13 +3,15 @@
  *
  * This file provides:
  * - Razorpay SDK initialization
- * - Plan-to-Razorpay mapping (server-side only)
  * - Webhook signature verification
  * - Webhook event constants
+ *
+ * All configuration values are read from the config module using the
+ * canonical Firebase Functions .value() API.
  */
 
 import * as crypto from 'crypto';
-import { PlanId } from './entitlements';
+import { getRazorpayKeyId, getRazorpayKeySecret, getRazorpayWebhookSecret } from './config';
 
 // ---------------------------------------------------------------------------
 // Razorpay SDK initialization
@@ -22,13 +24,13 @@ let razorpayInstance: any = null;
 
 /**
  * Get or initialize the Razorpay SDK instance.
- * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from environment.
+ * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from config module.
  */
 export function getRazorpayInstance(): any {
   if (razorpayInstance) return razorpayInstance;
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const keyId = getRazorpayKeyId();
+  const keySecret = getRazorpayKeySecret();
 
   if (!keyId || !keySecret) {
     throw new Error(
@@ -42,33 +44,6 @@ export function getRazorpayInstance(): any {
   });
 
   return razorpayInstance;
-}
-
-// ---------------------------------------------------------------------------
-// Server-side plan → Razorpay plan mapping
-// ---------------------------------------------------------------------------
-
-/**
- * Razorpay plan IDs for each internal plan.
- * These are created in the Razorpay Dashboard and referenced by ID.
- *
- * Environment variables:
- *   RAZORPAY_PLAN_PRO_MONTHLY      — Razorpay plan id for Pro monthly
- *   RAZORPAY_PLAN_PRO_YEARLY       — Razorpay plan id for Pro yearly
- *   RAZORPAY_PLAN_BUSINESS_MONTHLY — Razorpay plan id for Business monthly
- *   RAZORPAY_PLAN_BUSINESS_YEARLY  — Razorpay plan id for Business yearly
- */
-export function getRazorpayPlanId(planId: PlanId, interval: 'monthly' | 'yearly' = 'monthly'): string | null {
-  if (planId === 'free') return null;
-
-  const envKey = `RAZORPAY_PLAN_${planId.toUpperCase()}_${interval.toUpperCase()}`;
-  const planIdValue = process.env[envKey];
-
-  if (!planIdValue) {
-    return null;
-  }
-
-  return planIdValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +61,7 @@ export function verifyRazorpayWebhookSignature(
   rawBody: Buffer,
   signatureHeader: string | undefined
 ): boolean {
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const webhookSecret = getRazorpayWebhookSecret();
 
   if (!webhookSecret || !signatureHeader) {
     return false;

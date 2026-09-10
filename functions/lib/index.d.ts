@@ -11,8 +11,7 @@ export declare const checkCustomDomainLiveFn: functions.https.CallableFunction<i
  * Creates a Razorpay subscription for upgrading to a paid plan.
  * Returns subscription details for client-side Razorpay Checkout.
  *
- * Requires: RAZORPAY_KEY_SECRET (SDK auth), RAZORPAY_KEY_ID (returned to client),
- *           RAZORPAY_PLAN_PRO_MONTHLY (plan resolution)
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth)
  */
 export declare const createCheckoutSessionFn: functions.https.CallableFunction<import("./checkout").CreateCheckoutRequest, Promise<import("./checkout").CreateCheckoutResponse>, unknown>;
 /**
@@ -52,8 +51,7 @@ export declare const connectCustomDomainServerFn: functions.https.CallableFuncti
  * Razorpay webhook endpoint. Receives POST requests from Razorpay.
  * Verifies webhook signature and processes subscription events.
  *
- * Requires: RAZORPAY_WEBHOOK_SECRET (signature verification),
- *           RAZORPAY_PLAN_* (plan resolution from Razorpay plan IDs)
+ * Requires: RAZORPAY_WEBHOOK_SECRET (signature verification)
  *
  * Configure this URL in your Razorpay Dashboard:
  *   https://<region>-<project>.cloudfunctions.net/razorpayWebhook

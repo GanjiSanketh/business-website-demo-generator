@@ -56,6 +56,7 @@ const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const auth_1 = require("./auth");
 const entitlements_1 = require("./entitlements");
+const config_1 = require("./config");
 const razorpay_types_1 = require("./razorpay-types");
 /**
  * Create a Razorpay Subscription for plan upgrade.
@@ -90,7 +91,7 @@ async function createCheckoutSession(request) {
         throw new functions.https.HttpsError('failed-precondition', 'Downgrades are not supported through checkout. Please contact support.');
     }
     // Resolve Razorpay plan ID from trusted server config
-    const razorpayPlanId = (0, razorpay_types_1.getRazorpayPlanId)(planId, 'monthly');
+    const razorpayPlanId = (0, config_1.getRazorpayPlanId)(planId, 'monthly');
     if (!razorpayPlanId) {
         throw new functions.https.HttpsError('failed-precondition', 'Payment plan is not configured. Please contact support.');
     }
@@ -133,7 +134,7 @@ async function createCheckoutSession(request) {
         });
         return {
             subscriptionId: subscription.id,
-            razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+            razorpayKeyId: (0, config_1.getRazorpayKeyId)(),
             planId,
         };
     }

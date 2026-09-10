@@ -46,17 +46,17 @@ Record the plan IDs (e.g., `plan_xxxxx`).
 ## Firebase Functions v2 — Secret & Config Architecture
 
 This project uses Firebase Functions v2 with `defineSecret()` and `defineString()`
-from `firebase-functions/params`. The two types use different deployment commands:
+from `firebase-functions/params`. The two types use different configuration methods:
 
-| Type | Definition | Deployment Command | Runtime Access |
-|------|------------|-------------------|----------------|
-| **Secret** (sensitive) | `defineSecret('NAME')` | `firebase functions:secrets:set NAME` | `process.env.NAME` (auto-injected) |
-| **String** (non-sensitive) | `defineString('NAME')` | `firebase functions:config:set name="value"` | `process.env.NAME` (auto-injected) |
-
-**IMPORTANT**: `firebase functions:config:set` is DEPRECATED for secrets.
-Secrets must use `firebase functions:secrets:set` for proper encryption at rest.
+| Type | Definition | Configuration Method | Runtime Access |
+|------|------------|---------------------|----------------|
+| **Secret** (sensitive) | `defineSecret('NAME')` | Firebase Secret Manager | `.value()` (reads from `process.env`) |
+| **String** (non-sensitive) | `defineString('NAME')` | `.env` files in functions directory | `.value()` (reads from `process.env`) |
 
 ### Secrets (defineSecret — encrypted at rest)
+
+Secrets are stored in Firebase Secret Manager and injected into the function
+environment at runtime. They are NEVER stored in `.env` files.
 
 | Variable | Used By | Purpose |
 |----------|---------|---------|
@@ -64,6 +64,9 @@ Secrets must use `firebase functions:secrets:set` for proper encryption at rest.
 | `RAZORPAY_WEBHOOK_SECRET` | `razorpayWebhook` | Webhook signature verification |
 
 ### String Parameters (defineString — plain text)
+
+String parameters are read from `.env` files in the functions directory.
+The Firebase CLI loads these files automatically during deployment and emulation.
 
 | Variable | Used By | Purpose |
 |----------|---------|---------|
@@ -75,57 +78,62 @@ Secrets must use `firebase functions:secrets:set` for proper encryption at rest.
 
 ## Local Development Configuration
 
-### Option 1: `.env` file (Recommended for local dev)
+### Step 1: Copy the example file
 
-Create a `.env` file in the `functions/` directory (NEVER commit this file).
-Firebase emulators load these as `process.env` values automatically:
+```bash
+cp functions/.env.example functions/.env
+```
+
+### Step 2: Fill in your test credentials
+
+Edit `functions/.env` with your Razorpay test credentials:
 
 ```
 RAZORPAY_KEY_ID=rzp_test_xxxxx
-RAZORPAY_KEY_SECRET=your_key_secret
-RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 RAZORPAY_PLAN_PRO_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_PRO_YEARLY=plan_xxxxx
 RAZORPAY_PLAN_BUSINESS_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_BUSINESS_YEARLY=plan_xxxxx
 ```
 
-### Option 2: Firebase Functions Config (for emulator)
+### Step 3: Start the emulator
 
 ```bash
-# Set string parameters for local emulator
-firebase functions:config:set \
-  razorpay.key_id="rzp_test_xxxxx" \
-  razorpay.plan_pro_monthly="plan_xxxxx" \
-  razorpay.plan_pro_yearly="plan_xxxxx" \
-  razorpay.plan_business_monthly="plan_xxxxx" \
-  razorpay.plan_business_yearly="plan_xxxxx"
-
-# Set secrets for local emulator (interactive prompt)
-firebase functions:secrets:set RAZORPAY_KEY_SECRET
-firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
+firebase emulators:start --only functions
 ```
+
+The emulator loads values from `functions/.env` automatically.
+
+**NEVER commit `functions/.env` to version control.**
 
 ## Production Configuration (Firebase Deploy)
 
-### Step 1: Set Secrets (encrypted at rest)
+### Step 1: Configure Non-secret Parameters
+
+Create a `functions/.env` file with your production values:
+
+```
+RAZORPAY_KEY_ID=rzp_live_xxxxx
+RAZORPAY_PLAN_PRO_MONTHLY=plan_xxxxx
+RAZORPAY_PLAN_PRO_YEARLY=plan_xxxxx
+RAZORPAY_PLAN_BUSINESS_MONTHLY=plan_xxxxx
+RAZORPAY_PLAN_BUSINESS_YEARLY=plan_xxxxx
+```
+
+The Firebase CLI reads this file during deployment and injects the values
+into the function environment at runtime.
+
+**Alternative**: If you prefer not to store production values in `.env`,
+the CLI will prompt for missing values interactively during deployment.
+
+### Step 2: Configure Secrets
+
+Secrets are stored in Firebase Secret Manager, NOT in `.env` files.
 
 ```bash
 # Set sensitive secrets — interactive prompt will ask for the value
 firebase functions:secrets:set RAZORPAY_KEY_SECRET
 firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
-```
-
-### Step 2: Set String Parameters (plain text)
-
-```bash
-# Set non-sensitive parameters
-firebase functions:config:set \
-  razorpay.key_id="rzp_live_xxxxx" \
-  razorpay.plan_pro_monthly="plan_xxxxx" \
-  razorpay.plan_pro_yearly="plan_xxxxx" \
-  razorpay.plan_business_monthly="plan_xxxxx" \
-  razorpay.plan_business_yearly="plan_xxxxx"
 ```
 
 ### Step 3: Deploy Functions
@@ -137,12 +145,20 @@ firebase deploy --only functions
 ### Verifying Configuration
 
 ```bash
-# Check string parameters
-firebase functions:config:get
-
 # Check secrets (values are hidden, only shows metadata)
 firebase functions:secrets:access
 ```
+
+## Environment File Reference
+
+| File | Purpose | Committed | Contains Secrets |
+|------|---------|-----------|-----------------|
+| `functions/.env.example` | Template with placeholders | Yes | No |
+| `functions/.env` | Your credentials | No (gitignored) | No (non-secret only) |
+| `functions/.env.local` | Local overrides | No (gitignored) | No |
+| `functions/.env.<project-id>` | Project-specific config | Optional | No |
+| `functions/.env.<project-id>.local` | Project-specific overrides | No (gitignored) | No |
+| `functions/.secret.local` | Local emulator secrets | No (gitignored) | Yes |
 
 ## Razorpay Dashboard Webhook Configuration
 
@@ -156,7 +172,7 @@ https://<region>-<project-id>.cloudfunctions.net/razorpayWebhook
 
 Example:
 ```
-https://us-central1-my-project.cloudfunctions.net/razorpayWebhook
+https://us-central1-website-demo-generator.cloudfunctions.net/razorpayWebhook
 ```
 
 ### Webhook Events to Subscribe
@@ -175,7 +191,11 @@ Select these events in the Razorpay Dashboard:
 ### Webhook Secret
 
 Generate a webhook secret in the Razorpay Dashboard and configure it
-in your Firebase Functions config or secrets.
+using Firebase Secret Manager:
+
+```bash
+firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
+```
 
 ## Test Mode vs Live Mode
 
@@ -213,6 +233,6 @@ in your Firebase Functions config or secrets.
 4. All payment writes originate from verified Cloud Functions or webhook processing
 5. Webhook signatures are verified using HMAC-SHA256 with timing-safe comparison
 6. Idempotency is enforced — duplicate webhook events are safely ignored
-7. `defineSecret()` values are encrypted at rest and only accessible to bound functions
+7. `defineSecret()` values are encrypted at rest in Firebase Secret Manager
 8. `defineString()` values are plain text — use only for non-sensitive configuration
-9. `firebase functions:config:set` is DEPRECATED for secrets — use `secrets:set` instead
+9. Secrets are NEVER stored in `.env` files — use `firebase functions:secrets:set`

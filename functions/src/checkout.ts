@@ -21,7 +21,8 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { requireAuth, CallableRequest } from './auth';
 import { PlanId, PLAN_METADATA, isPlanUpgrade } from './entitlements';
-import { getRazorpayInstance, getRazorpayPlanId } from './razorpay-types';
+import { getRazorpayPlanId, getRazorpayKeyId } from './config';
+import { getRazorpayInstance } from './razorpay-types';
 
 export interface CreateCheckoutRequest {
   planId: PlanId;
@@ -131,7 +132,7 @@ export async function createCheckoutSession(
 
     return {
       subscriptionId: subscription.id,
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      razorpayKeyId: getRazorpayKeyId(),
       planId,
     };
   } catch (err: any) {

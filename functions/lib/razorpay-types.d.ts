@@ -3,27 +3,17 @@
  *
  * This file provides:
  * - Razorpay SDK initialization
- * - Plan-to-Razorpay mapping (server-side only)
  * - Webhook signature verification
  * - Webhook event constants
+ *
+ * All configuration values are read from the config module using the
+ * canonical Firebase Functions .value() API.
  */
-import { PlanId } from './entitlements';
 /**
  * Get or initialize the Razorpay SDK instance.
- * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from environment.
+ * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from config module.
  */
 export declare function getRazorpayInstance(): any;
-/**
- * Razorpay plan IDs for each internal plan.
- * These are created in the Razorpay Dashboard and referenced by ID.
- *
- * Environment variables:
- *   RAZORPAY_PLAN_PRO_MONTHLY      — Razorpay plan id for Pro monthly
- *   RAZORPAY_PLAN_PRO_YEARLY       — Razorpay plan id for Pro yearly
- *   RAZORPAY_PLAN_BUSINESS_MONTHLY — Razorpay plan id for Business monthly
- *   RAZORPAY_PLAN_BUSINESS_YEARLY  — Razorpay plan id for Business yearly
- */
-export declare function getRazorpayPlanId(planId: PlanId, interval?: 'monthly' | 'yearly'): string | null;
 /**
  * Verify Razorpay webhook signature using HMAC-SHA256.
  *

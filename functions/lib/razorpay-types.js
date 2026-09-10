@@ -4,9 +4,11 @@
  *
  * This file provides:
  * - Razorpay SDK initialization
- * - Plan-to-Razorpay mapping (server-side only)
  * - Webhook signature verification
  * - Webhook event constants
+ *
+ * All configuration values are read from the config module using the
+ * canonical Firebase Functions .value() API.
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -44,9 +46,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RAZORPAY_WEBHOOK_EVENTS = void 0;
 exports.getRazorpayInstance = getRazorpayInstance;
-exports.getRazorpayPlanId = getRazorpayPlanId;
 exports.verifyRazorpayWebhookSignature = verifyRazorpayWebhookSignature;
 const crypto = __importStar(require("crypto"));
+const config_1 = require("./config");
 // ---------------------------------------------------------------------------
 // Razorpay SDK initialization
 // ---------------------------------------------------------------------------
@@ -55,13 +57,13 @@ const Razorpay = require('razorpay');
 let razorpayInstance = null;
 /**
  * Get or initialize the Razorpay SDK instance.
- * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from environment.
+ * Uses RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET from config module.
  */
 function getRazorpayInstance() {
     if (razorpayInstance)
         return razorpayInstance;
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = (0, config_1.getRazorpayKeyId)();
+    const keySecret = (0, config_1.getRazorpayKeySecret)();
     if (!keyId || !keySecret) {
         throw new Error('Razorpay credentials not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Firebase Functions config.');
     }
@@ -70,29 +72,6 @@ function getRazorpayInstance() {
         key_secret: keySecret,
     });
     return razorpayInstance;
-}
-// ---------------------------------------------------------------------------
-// Server-side plan → Razorpay plan mapping
-// ---------------------------------------------------------------------------
-/**
- * Razorpay plan IDs for each internal plan.
- * These are created in the Razorpay Dashboard and referenced by ID.
- *
- * Environment variables:
- *   RAZORPAY_PLAN_PRO_MONTHLY      — Razorpay plan id for Pro monthly
- *   RAZORPAY_PLAN_PRO_YEARLY       — Razorpay plan id for Pro yearly
- *   RAZORPAY_PLAN_BUSINESS_MONTHLY — Razorpay plan id for Business monthly
- *   RAZORPAY_PLAN_BUSINESS_YEARLY  — Razorpay plan id for Business yearly
- */
-function getRazorpayPlanId(planId, interval = 'monthly') {
-    if (planId === 'free')
-        return null;
-    const envKey = `RAZORPAY_PLAN_${planId.toUpperCase()}_${interval.toUpperCase()}`;
-    const planIdValue = process.env[envKey];
-    if (!planIdValue) {
-        return null;
-    }
-    return planIdValue;
 }
 // ---------------------------------------------------------------------------
 // Webhook signature verification
@@ -105,7 +84,7 @@ function getRazorpayPlanId(planId, interval = 'monthly') {
  * @returns true if signature is valid
  */
 function verifyRazorpayWebhookSignature(rawBody, signatureHeader) {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const webhookSecret = (0, config_1.getRazorpayWebhookSecret)();
     if (!webhookSecret || !signatureHeader) {
         return false;
     }

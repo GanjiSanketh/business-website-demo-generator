@@ -24,6 +24,7 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { PlanId } from './entitlements';
+import { getRazorpayPlanId } from './config';
 import {
   verifyRazorpayWebhookSignature,
   RAZORPAY_WEBHOOK_EVENTS,
@@ -82,13 +83,13 @@ async function findUserByRazorpayCustomer(customerId: string): Promise<string | 
 }
 
 /**
- * Resolve internal plan from Razorpay plan ID via environment variables.
+ * Resolve internal plan from Razorpay plan ID via config module.
  */
 function planFromRazorpayPlanId(razorpayPlanId: string): PlanId | null {
   const plans: PlanId[] = ['free', 'pro', 'business'];
   for (const plan of plans) {
-    const monthlyId = process.env[`RAZORPAY_PLAN_${plan.toUpperCase()}_MONTHLY`];
-    const yearlyId = process.env[`RAZORPAY_PLAN_${plan.toUpperCase()}_YEARLY`];
+    const monthlyId = getRazorpayPlanId(plan, 'monthly');
+    const yearlyId = getRazorpayPlanId(plan, 'yearly');
     if (monthlyId === razorpayPlanId || yearlyId === razorpayPlanId) {
       return plan;
     }
@@ -100,10 +101,10 @@ function planFromRazorpayPlanId(razorpayPlanId: string): PlanId | null {
  * Resolve billing interval from Razorpay plan ID.
  */
 function resolveIntervalFromPlanId(razorpayPlanId: string): 'monthly' | 'yearly' | undefined {
-  const proMonthly = process.env.RAZORPAY_PLAN_PRO_MONTHLY;
-  const proYearly = process.env.RAZORPAY_PLAN_PRO_YEARLY;
-  const bizMonthly = process.env.RAZORPAY_PLAN_BUSINESS_MONTHLY;
-  const bizYearly = process.env.RAZORPAY_PLAN_BUSINESS_YEARLY;
+  const proMonthly = getRazorpayPlanId('pro', 'monthly');
+  const proYearly = getRazorpayPlanId('pro', 'yearly');
+  const bizMonthly = getRazorpayPlanId('business', 'monthly');
+  const bizYearly = getRazorpayPlanId('business', 'yearly');
 
   if (razorpayPlanId === proMonthly || razorpayPlanId === bizMonthly) return 'monthly';
   if (razorpayPlanId === proYearly || razorpayPlanId === bizYearly) return 'yearly';
