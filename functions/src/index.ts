@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { defineSecret, defineString } from 'firebase-functions/params';
 import { verifyCustomDomain } from './domain-verification';
 import { checkCustomDomainLive } from './domain-liveness';
 import { createCheckoutSession } from './checkout';
@@ -23,6 +24,21 @@ const { ssrHandler } = require('./ssr.cjs');
 admin.initializeApp();
 
 // ---------------------------------------------------------------------------
+// Razorpay configuration — Firebase Secret Manager
+// ---------------------------------------------------------------------------
+
+// SENSITIVE — encrypted at rest, only accessible to bound functions
+const RAZORPAY_KEY_SECRET = defineSecret('RAZORPAY_KEY_SECRET');
+const RAZORPAY_WEBHOOK_SECRET = defineSecret('RAZORPAY_WEBHOOK_SECRET');
+
+// NON-SENSITIVE — plain text parameters
+const RAZORPAY_KEY_ID = defineString('RAZORPAY_KEY_ID');
+const RAZORPAY_PLAN_PRO_MONTHLY = defineString('RAZORPAY_PLAN_PRO_MONTHLY');
+const RAZORPAY_PLAN_PRO_YEARLY = defineString('RAZORPAY_PLAN_PRO_YEARLY');
+const RAZORPAY_PLAN_BUSINESS_MONTHLY = defineString('RAZORPAY_PLAN_BUSINESS_MONTHLY');
+const RAZORPAY_PLAN_BUSINESS_YEARLY = defineString('RAZORPAY_PLAN_BUSINESS_YEARLY');
+
+// ---------------------------------------------------------------------------
 // Domain management
 // ---------------------------------------------------------------------------
 
@@ -43,18 +59,27 @@ export const checkCustomDomainLiveFn = functions.https.onCall(checkCustomDomainL
 /**
  * Creates a Razorpay subscription for upgrading to a paid plan.
  * Returns subscription details for client-side Razorpay Checkout.
+ *
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth), RAZORPAY_KEY_ID (returned to client),
+ *           RAZORPAY_PLAN_PRO_MONTHLY (plan resolution)
  */
-export const createCheckoutSessionFn = functions.https.onCall(createCheckoutSession);
+export const createCheckoutSessionFn = functions.https.onCall({
+  secrets: [RAZORPAY_KEY_SECRET],
+}, createCheckoutSession);
 
 /**
  * Returns the current subscription status for the authenticated user.
+ * No Razorpay secrets required — reads from Firestore only.
  */
 export const getSubscriptionStatusFn = functions.https.onCall(getSubscriptionStatus);
 
 /**
  * Cancels the user's subscription via Razorpay API.
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth)
  */
-export const cancelSubscriptionFn = functions.https.onCall(cancelSubscription);
+export const cancelSubscriptionFn = functions.https.onCall({
+  secrets: [RAZORPAY_KEY_SECRET],
+}, cancelSubscription);
 
 /**
  * Checks whether the user can perform a specific operation given their plan limits.
@@ -96,10 +121,15 @@ export const connectCustomDomainServerFn = functions.https.onCall(connectCustomD
  * Razorpay webhook endpoint. Receives POST requests from Razorpay.
  * Verifies webhook signature and processes subscription events.
  *
+ * Requires: RAZORPAY_WEBHOOK_SECRET (signature verification),
+ *           RAZORPAY_PLAN_* (plan resolution from Razorpay plan IDs)
+ *
  * Configure this URL in your Razorpay Dashboard:
  *   https://<region>-<project>.cloudfunctions.net/razorpayWebhook
  */
-export const razorpayWebhook = functions.https.onRequest(handleRazorpayWebhook);
+export const razorpayWebhook = functions.https.onRequest({
+  secrets: [RAZORPAY_WEBHOOK_SECRET],
+}, handleRazorpayWebhook);
 
 // ---------------------------------------------------------------------------
 // SSR

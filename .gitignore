@@ -53,3 +53,9 @@ Thumbs.db
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+
+# Firebase Functions local secrets
+functions/.env
+functions/.env.local
+functions/.secret.local
+functions/.secret.*.local

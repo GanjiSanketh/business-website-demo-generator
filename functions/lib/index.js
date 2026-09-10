@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ssr = exports.razorpayWebhook = exports.connectCustomDomainServerFn = exports.publishBusinessServerFn = exports.createBusinessServerFn = exports.getUsageFn = exports.checkPlanLimitFn = exports.cancelSubscriptionFn = exports.getSubscriptionStatusFn = exports.createCheckoutSessionFn = exports.checkCustomDomainLiveFn = exports.verifyCustomDomainFn = void 0;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
+const params_1 = require("firebase-functions/params");
 const domain_verification_1 = require("./domain-verification");
 const domain_liveness_1 = require("./domain-liveness");
 const checkout_1 = require("./checkout");
@@ -49,6 +50,18 @@ const enforcement_callables_1 = require("./enforcement-callables");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { ssrHandler } = require('./ssr.cjs');
 admin.initializeApp();
+// ---------------------------------------------------------------------------
+// Razorpay configuration — Firebase Secret Manager
+// ---------------------------------------------------------------------------
+// SENSITIVE — encrypted at rest, only accessible to bound functions
+const RAZORPAY_KEY_SECRET = (0, params_1.defineSecret)('RAZORPAY_KEY_SECRET');
+const RAZORPAY_WEBHOOK_SECRET = (0, params_1.defineSecret)('RAZORPAY_WEBHOOK_SECRET');
+// NON-SENSITIVE — plain text parameters
+const RAZORPAY_KEY_ID = (0, params_1.defineString)('RAZORPAY_KEY_ID');
+const RAZORPAY_PLAN_PRO_MONTHLY = (0, params_1.defineString)('RAZORPAY_PLAN_PRO_MONTHLY');
+const RAZORPAY_PLAN_PRO_YEARLY = (0, params_1.defineString)('RAZORPAY_PLAN_PRO_YEARLY');
+const RAZORPAY_PLAN_BUSINESS_MONTHLY = (0, params_1.defineString)('RAZORPAY_PLAN_BUSINESS_MONTHLY');
+const RAZORPAY_PLAN_BUSINESS_YEARLY = (0, params_1.defineString)('RAZORPAY_PLAN_BUSINESS_YEARLY');
 // ---------------------------------------------------------------------------
 // Domain management
 // ---------------------------------------------------------------------------
@@ -66,16 +79,25 @@ exports.checkCustomDomainLiveFn = functions.https.onCall(domain_liveness_1.check
 /**
  * Creates a Razorpay subscription for upgrading to a paid plan.
  * Returns subscription details for client-side Razorpay Checkout.
+ *
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth), RAZORPAY_KEY_ID (returned to client),
+ *           RAZORPAY_PLAN_PRO_MONTHLY (plan resolution)
  */
-exports.createCheckoutSessionFn = functions.https.onCall(checkout_1.createCheckoutSession);
+exports.createCheckoutSessionFn = functions.https.onCall({
+    secrets: [RAZORPAY_KEY_SECRET],
+}, checkout_1.createCheckoutSession);
 /**
  * Returns the current subscription status for the authenticated user.
+ * No Razorpay secrets required — reads from Firestore only.
  */
 exports.getSubscriptionStatusFn = functions.https.onCall(subscription_1.getSubscriptionStatus);
 /**
  * Cancels the user's subscription via Razorpay API.
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth)
  */
-exports.cancelSubscriptionFn = functions.https.onCall(subscription_1.cancelSubscription);
+exports.cancelSubscriptionFn = functions.https.onCall({
+    secrets: [RAZORPAY_KEY_SECRET],
+}, subscription_1.cancelSubscription);
 /**
  * Checks whether the user can perform a specific operation given their plan limits.
  */
@@ -109,10 +131,15 @@ exports.connectCustomDomainServerFn = functions.https.onCall(enforcement_callabl
  * Razorpay webhook endpoint. Receives POST requests from Razorpay.
  * Verifies webhook signature and processes subscription events.
  *
+ * Requires: RAZORPAY_WEBHOOK_SECRET (signature verification),
+ *           RAZORPAY_PLAN_* (plan resolution from Razorpay plan IDs)
+ *
  * Configure this URL in your Razorpay Dashboard:
  *   https://<region>-<project>.cloudfunctions.net/razorpayWebhook
  */
-exports.razorpayWebhook = functions.https.onRequest(webhook_1.handleRazorpayWebhook);
+exports.razorpayWebhook = functions.https.onRequest({
+    secrets: [RAZORPAY_WEBHOOK_SECRET],
+}, webhook_1.handleRazorpayWebhook);
 // ---------------------------------------------------------------------------
 // SSR
 // ---------------------------------------------------------------------------

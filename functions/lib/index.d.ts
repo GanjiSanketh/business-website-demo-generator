@@ -10,14 +10,19 @@ export declare const checkCustomDomainLiveFn: functions.https.CallableFunction<i
 /**
  * Creates a Razorpay subscription for upgrading to a paid plan.
  * Returns subscription details for client-side Razorpay Checkout.
+ *
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth), RAZORPAY_KEY_ID (returned to client),
+ *           RAZORPAY_PLAN_PRO_MONTHLY (plan resolution)
  */
 export declare const createCheckoutSessionFn: functions.https.CallableFunction<import("./checkout").CreateCheckoutRequest, Promise<import("./checkout").CreateCheckoutResponse>, unknown>;
 /**
  * Returns the current subscription status for the authenticated user.
+ * No Razorpay secrets required — reads from Firestore only.
  */
 export declare const getSubscriptionStatusFn: functions.https.CallableFunction<import("./subscription").GetSubscriptionStatusRequest, Promise<import("./subscription").SubscriptionStatusResponse>, unknown>;
 /**
  * Cancels the user's subscription via Razorpay API.
+ * Requires: RAZORPAY_KEY_SECRET (SDK auth)
  */
 export declare const cancelSubscriptionFn: functions.https.CallableFunction<import("./subscription").CancelSubscriptionRequest, Promise<import("./subscription").CancelSubscriptionResponse>, unknown>;
 /**
@@ -46,6 +51,9 @@ export declare const connectCustomDomainServerFn: functions.https.CallableFuncti
 /**
  * Razorpay webhook endpoint. Receives POST requests from Razorpay.
  * Verifies webhook signature and processes subscription events.
+ *
+ * Requires: RAZORPAY_WEBHOOK_SECRET (signature verification),
+ *           RAZORPAY_PLAN_* (plan resolution from Razorpay plan IDs)
  *
  * Configure this URL in your Razorpay Dashboard:
  *   https://<region>-<project>.cloudfunctions.net/razorpayWebhook

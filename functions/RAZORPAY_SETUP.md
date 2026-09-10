@@ -43,25 +43,42 @@ You must create subscription plans in the Razorpay Dashboard:
 For each plan (pro, business), create monthly and yearly variants.
 Record the plan IDs (e.g., `plan_xxxxx`).
 
+## Firebase Functions v2 — Secret & Config Architecture
+
+This project uses Firebase Functions v2 with `defineSecret()` and `defineString()`
+from `firebase-functions/params`. The two types use different deployment commands:
+
+| Type | Definition | Deployment Command | Runtime Access |
+|------|------------|-------------------|----------------|
+| **Secret** (sensitive) | `defineSecret('NAME')` | `firebase functions:secrets:set NAME` | `process.env.NAME` (auto-injected) |
+| **String** (non-sensitive) | `defineString('NAME')` | `firebase functions:config:set name="value"` | `process.env.NAME` (auto-injected) |
+
+**IMPORTANT**: `firebase functions:config:set` is DEPRECATED for secrets.
+Secrets must use `firebase functions:secrets:set` for proper encryption at rest.
+
+### Secrets (defineSecret — encrypted at rest)
+
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| `RAZORPAY_KEY_SECRET` | `createCheckoutSessionFn`, `cancelSubscriptionFn` | Razorpay SDK authentication |
+| `RAZORPAY_WEBHOOK_SECRET` | `razorpayWebhook` | Webhook signature verification |
+
+### String Parameters (defineString — plain text)
+
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| `RAZORPAY_KEY_ID` | `createCheckoutSessionFn` (returned to client) | Razorpay API Key ID |
+| `RAZORPAY_PLAN_PRO_MONTHLY` | `createCheckoutSessionFn`, `razorpayWebhook` | Razorpay plan ID for Pro monthly |
+| `RAZORPAY_PLAN_PRO_YEARLY` | `razorpayWebhook` | Razorpay plan ID for Pro yearly |
+| `RAZORPAY_PLAN_BUSINESS_MONTHLY` | `createCheckoutSessionFn`, `razorpayWebhook` | Razorpay plan ID for Business monthly |
+| `RAZORPAY_PLAN_BUSINESS_YEARLY` | `razorpayWebhook` | Razorpay plan ID for Business yearly |
+
 ## Local Development Configuration
 
-### Option 1: Firebase Functions Config (Recommended)
+### Option 1: `.env` file (Recommended for local dev)
 
-```bash
-# Set Razorpay credentials for local emulator
-firebase functions:config:set \
-  razorpay.key_id="rzp_test_xxxxx" \
-  razorpay.key_secret="your_key_secret" \
-  razorpay.webhook_secret="your_webhook_secret" \
-  razorpay.plan_pro_monthly="plan_xxxxx" \
-  razorpay.plan_pro_yearly="plan_xxxxx" \
-  razorpay.plan_business_monthly="plan_xxxxx" \
-  razorpay.plan_business_yearly="plan_xxxxx"
-```
-
-### Option 2: Environment Variables
-
-Create a `.env` file in the `functions/` directory (NEVER commit this file):
+Create a `.env` file in the `functions/` directory (NEVER commit this file).
+Firebase emulators load these as `process.env` values automatically:
 
 ```
 RAZORPAY_KEY_ID=rzp_test_xxxxx
@@ -73,27 +90,58 @@ RAZORPAY_PLAN_BUSINESS_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_BUSINESS_YEARLY=plan_xxxxx
 ```
 
-## Production Configuration (Firebase Deploy)
-
-### Using Firebase Secrets (Recommended)
+### Option 2: Firebase Functions Config (for emulator)
 
 ```bash
-# Set secrets for deployed functions
-firebase functions:secrets:set RAZORPAY_KEY_SECRET
-firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
-```
-
-### Using Firebase Functions Config
-
-```bash
+# Set string parameters for local emulator
 firebase functions:config:set \
-  razorpay.key_id="rzp_live_xxxxx" \
-  razorpay.key_secret="your_live_key_secret" \
-  razorpay.webhook_secret="your_live_webhook_secret" \
+  razorpay.key_id="rzp_test_xxxxx" \
   razorpay.plan_pro_monthly="plan_xxxxx" \
   razorpay.plan_pro_yearly="plan_xxxxx" \
   razorpay.plan_business_monthly="plan_xxxxx" \
   razorpay.plan_business_yearly="plan_xxxxx"
+
+# Set secrets for local emulator (interactive prompt)
+firebase functions:secrets:set RAZORPAY_KEY_SECRET
+firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
+```
+
+## Production Configuration (Firebase Deploy)
+
+### Step 1: Set Secrets (encrypted at rest)
+
+```bash
+# Set sensitive secrets — interactive prompt will ask for the value
+firebase functions:secrets:set RAZORPAY_KEY_SECRET
+firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
+```
+
+### Step 2: Set String Parameters (plain text)
+
+```bash
+# Set non-sensitive parameters
+firebase functions:config:set \
+  razorpay.key_id="rzp_live_xxxxx" \
+  razorpay.plan_pro_monthly="plan_xxxxx" \
+  razorpay.plan_pro_yearly="plan_xxxxx" \
+  razorpay.plan_business_monthly="plan_xxxxx" \
+  razorpay.plan_business_yearly="plan_xxxxx"
+```
+
+### Step 3: Deploy Functions
+
+```bash
+firebase deploy --only functions
+```
+
+### Verifying Configuration
+
+```bash
+# Check string parameters
+firebase functions:config:get
+
+# Check secrets (values are hidden, only shows metadata)
+firebase functions:secrets:access
 ```
 
 ## Razorpay Dashboard Webhook Configuration
@@ -165,3 +213,6 @@ in your Firebase Functions config or secrets.
 4. All payment writes originate from verified Cloud Functions or webhook processing
 5. Webhook signatures are verified using HMAC-SHA256 with timing-safe comparison
 6. Idempotency is enforced — duplicate webhook events are safely ignored
+7. `defineSecret()` values are encrypted at rest and only accessible to bound functions
+8. `defineString()` values are plain text — use only for non-sensitive configuration
+9. `firebase functions:config:set` is DEPRECATED for secrets — use `secrets:set` instead
